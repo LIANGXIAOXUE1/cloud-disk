@@ -1,0 +1,42 @@
+2026-05-18 10:55:31 [main] INFO  com.cloud.disk.CloudDiskApplication - Starting CloudDiskApplication using Java 17.0.10 with PID 14396 (D:\application\Evolution_Web\cloud-disk\target\classes started by ¡∫œ˛¿ˆ in D:\application\Evolution_Web\cloud-disk)
+2026-05-18 10:55:31 [main] DEBUG com.cloud.disk.CloudDiskApplication - Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-05-18 10:55:31 [main] INFO  com.cloud.disk.CloudDiskApplication - No active profile set, falling back to 1 default profile: "default"
+2026-05-18 10:55:32 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-18 10:55:32 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-18 10:55:32 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 12 ms. Found 0 Redis repository interfaces.
+2026-05-18 10:55:32 [main] WARN  org.mybatis.spring.mapper.ClassPathMapperScanner - No MyBatis mapper was found in '[com.cloud.disk.repository]' package. Please check your configuration.
+2026-05-18 10:55:33 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-05-18 10:55:33 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-18 10:55:33 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.17]
+2026-05-18 10:55:33 [main] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-05-18 10:55:33 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2255 ms
+2026-05-18 10:55:35 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-05-18 10:55:35 [main] INFO  com.cloud.disk.CloudDiskApplication - Started CloudDiskApplication in 4.95 seconds (process running for 5.47)
+2026-05-18 11:04:31 [main] INFO  com.cloud.disk.CloudDiskApplication - Starting CloudDiskApplication using Java 23.0.2 with PID 31028 (D:\application\Evolution_Web\cloud-disk\target\classes started by Ê¢ÅÊôì‰∏Ω in D:\application\Evolution_Web\cloud-disk)
+2026-05-18 11:04:31 [main] DEBUG com.cloud.disk.CloudDiskApplication - Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-05-18 11:04:31 [main] INFO  com.cloud.disk.CloudDiskApplication - No active profile set, falling back to 1 default profile: "default"
+2026-05-18 11:04:32 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-18 11:04:32 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-18 11:04:32 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 14 ms. Found 0 Redis repository interfaces.
+2026-05-18 11:04:32 [main] WARN  org.mybatis.spring.mapper.ClassPathMapperScanner - No MyBatis mapper was found in '[com.cloud.disk.repository]' package. Please check your configuration.
+2026-05-18 11:04:33 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-05-18 11:04:33 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-18 11:04:33 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.17]
+2026-05-18 11:04:33 [main] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-05-18 11:04:33 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1493 ms
+2026-05-18 11:04:34 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-05-18 11:04:34 [main] INFO  com.cloud.disk.CloudDiskApplication - Started CloudDiskApplication in 3.68 seconds (process running for 4.255)
+2026-05-18 11:05:30 [main] INFO  com.cloud.disk.CloudDiskApplication - Starting CloudDiskApplication using Java 17.0.10 with PID 31868 (D:\application\Evolution_Web\cloud-disk\target\classes started by ¡∫œ˛¿ˆ in D:\application\Evolution_Web\cloud-disk)
+2026-05-18 11:05:30 [main] DEBUG com.cloud.disk.CloudDiskApplication - Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-05-18 11:05:30 [main] INFO  com.cloud.disk.CloudDiskApplication - No active profile set, falling back to 1 default profile: "default"
+2026-05-18 11:05:31 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-18 11:05:31 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-18 11:05:31 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 14 ms. Found 0 Redis repository interfaces.
+2026-05-18 11:05:31 [main] WARN  org.mybatis.spring.mapper.ClassPathMapperScanner - No MyBatis mapper was found in '[com.cloud.disk.repository]' package. Please check your configuration.
+2026-05-18 11:05:32 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-05-18 11:05:32 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-18 11:05:32 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.17]
+2026-05-18 11:05:32 [main] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-05-18 11:05:32 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1729 ms
+2026-05-18 11:05:34 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-05-18 11:05:34 [main] INFO  com.cloud.disk.CloudDiskApplication - Started CloudDiskApplication in 4.138 seconds (process running for 4.504)
