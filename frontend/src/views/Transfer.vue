@@ -1,9 +1,9 @@
 <template>
   <div class="transfer-page">
-    <h1 class="page-title">Transfer Tasks</h1>
+    <h1 class="page-title">转存任务</h1>
 
     <div class="toolbar">
-      <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">New Task</el-button>
+      <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">新建任务</el-button>
     </div>
 
     <el-card shadow="hover">
@@ -16,22 +16,22 @@
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="targetPath" label="Target" width="140" />
-        <el-table-column label="Progress" width="200">
+        <el-table-column prop="targetPath" label="目标路径" width="140" />
+        <el-table-column label="进度" width="200">
           <template #default="{ row }">
             <el-progress :percentage="row.progress || 0" :status="getProgressStatus(row.taskStatus)" />
           </template>
         </el-table-column>
-        <el-table-column label="Status" width="110">
+        <el-table-column label="状态" width="110">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.taskStatus)" size="small">{{ getStatusText(row.taskStatus) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="Created" width="180" />
-        <el-table-column label="Actions" width="140">
+        <el-table-column prop="createdAt" label="创建时间" width="180" />
+        <el-table-column label="操作" width="140">
           <template #default="{ row }">
-            <el-button v-if="row.taskStatus === 4" link type="primary" size="small" @click="handleRetry(row)">Retry</el-button>
-            <el-button v-if="row.taskStatus === 1" link type="danger" size="small" @click="handleCancel(row)">Cancel</el-button>
+            <el-button v-if="row.taskStatus === 4" link type="primary" size="small" @click="handleRetry(row)">重试</el-button>
+            <el-button v-if="row.taskStatus === 1" link type="danger" size="small" @click="handleCancel(row)">取消</el-button>
           </template>
         </el-table-column>
       </el-table>

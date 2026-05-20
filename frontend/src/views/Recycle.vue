@@ -1,16 +1,16 @@
 <template>
   <div class="recycle-page">
-    <h1 class="page-title">Recycle Bin</h1>
+    <h1 class="page-title">回收站</h1>
 
     <div class="toolbar">
-      <el-button type="danger" :icon="Delete" @click="handleClear" :disabled="recycleList.length === 0">Clear All</el-button>
-      <span class="toolbar-hint">Files are auto-deleted after 30 days</span>
+      <el-button type="danger" :icon="Delete" @click="handleClear" :disabled="recycleList.length === 0">清空回收站</el-button>
+      <span class="toolbar-hint">文件将在 30 天后自动清除</span>
     </div>
 
     <el-card shadow="hover">
       <el-table :data="recycleList" style="width: 100%" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column label="Name" min-width="240">
+        <el-table-column label="名称" min-width="240">
           <template #default="{ row }">
             <div class="file-name-cell">
               <el-icon :size="18" :color="row.isFolder ? 'var(--warning)' : 'var(--primary-500)'">
@@ -21,14 +21,14 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="Size" width="120">
+        <el-table-column label="大小" width="120">
           <template #default="{ row }">{{ row.isFolder ? '-' : formatSize(row.fileSize) }}</template>
         </el-table-column>
-        <el-table-column prop="deletedAt" label="Deleted At" width="180" />
-        <el-table-column label="Actions" width="160">
+        <el-table-column prop="deletedAt" label="删除时间" width="180" />
+        <el-table-column label="操作" width="160">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleRestore(row)">Restore</el-button>
-            <el-button link type="danger" size="small" @click="handlePermanentDelete(row)">Delete</el-button>
+            <el-button link type="primary" size="small" @click="handleRestore(row)">恢复</el-button>
+            <el-button link type="danger" size="small" @click="handlePermanentDelete(row)">彻底删除</el-button>
           </template>
         </el-table-column>
       </el-table>

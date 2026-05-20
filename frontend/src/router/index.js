@@ -16,31 +16,43 @@ const routes = [
         path: 'home',
         name: 'Home',
         component: () => import('@/views/Home.vue'),
-        meta: { title: 'Home', icon: 'HomeFilled' }
+        meta: { title: '控制台', icon: 'HomeFilled' }
       },
       {
         path: 'files',
         name: 'FileList',
         component: () => import('@/views/FileList.vue'),
-        meta: { title: 'File Manager', icon: 'FolderOpened' }
+        meta: { title: '文件管理', icon: 'FolderOpened' }
       },
       {
         path: 'share',
         name: 'Share',
         component: () => import('@/views/Share.vue'),
-        meta: { title: 'Share Manager', icon: 'Share' }
+        meta: { title: '分享管理', icon: 'Share' }
       },
       {
         path: 'transfer',
         name: 'Transfer',
         component: () => import('@/views/Transfer.vue'),
-        meta: { title: 'Transfer Tasks', icon: 'Connection' }
+        meta: { title: '转存任务', icon: 'Connection' }
       },
       {
         path: 'recycle',
         name: 'Recycle',
         component: () => import('@/views/Recycle.vue'),
-        meta: { title: 'Recycle Bin', icon: 'Delete' }
+        meta: { title: '回收站', icon: 'Delete' }
+      },
+      {
+        path: 'storage',
+        name: 'Storage',
+        component: () => import('@/views/Storage.vue'),
+        meta: { title: '存储管理', icon: 'Coin' }
+      },
+      {
+        path: 'user/profile',
+        name: 'UserProfile',
+        component: () => import('@/views/UserProfile.vue'),
+        meta: { title: '个人中心', icon: 'User', hidden: true }
       }
     ]
   }

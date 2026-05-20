@@ -1,41 +1,36 @@
 <template>
   <div class="layout-container">
-    <!-- Sidebar -->
-    <aside class="layout-sidebar" :class="{ collapsed: isCollapsed }">
+    <!-- ========== Desktop / Tablet Sidebar ========== -->
+    <aside v-if="!isMobile" class="layout-sidebar" :class="{ collapsed: isCollapsed }">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <el-icon :size="24"><CloudFilled /></el-icon>
-          <span v-show="!isCollapsed" class="sidebar-title">CloudDisk</span>
-        </div>
+        <CloudLogo :collapsed="isCollapsed" />
       </div>
 
       <el-menu
         :default-active="activeMenu"
         :collapse="isCollapsed"
         :unique-opened="true"
-        background-color="var(--neutral-800)"
-        text-color="var(--neutral-300)"
-        active-text-color="#fff"
         router
+        class="sidebar-menu"
       >
-        <template v-for="item in menuItems" :key="item.path">
-          <el-menu-item :index="item.path" v-if="!item.children">
-            <el-icon><component :is="item.meta.icon" /></el-icon>
+        <template v-for="item in visibleMenuItems" :key="item.path">
+          <el-menu-item :index="'/' + item.path" v-if="!item.children">
+            <el-icon :size="20"><component :is="item.meta.icon" /></el-icon>
             <template #title>{{ item.meta.title }}</template>
           </el-menu-item>
           <el-sub-menu :index="item.path" v-else>
             <template #title>
-              <el-icon><component :is="item.meta.icon" /></el-icon>
+              <el-icon :size="20"><component :is="item.meta.icon" /></el-icon>
               <span>{{ item.meta.title }}</span>
             </template>
-            <el-menu-item v-for="child in item.children" :key="child.path" :index="child.path">
+            <el-menu-item v-for="child in item.children" :key="child.path" :index="'/' + child.path">
               {{ child.meta.title }}
             </el-menu-item>
           </el-sub-menu>
         </template>
       </el-menu>
 
-      <div class="sidebar-collapse-btn" @click="isCollapsed = !isCollapsed">
+      <div class="sidebar-collapse-btn" @click="toggleSidebar">
         <el-icon :size="18">
           <Fold v-if="!isCollapsed" />
           <Expand v-else />
@@ -43,34 +38,66 @@
       </div>
     </aside>
 
-    <!-- Main -->
+    <!-- ========== Mobile Drawer ========== -->
+    <el-drawer
+      v-model="mobileDrawerVisible"
+      direction="ltr"
+      :size="260"
+      :with-header="false"
+      :z-index="400"
+      class="mobile-drawer"
+    >
+      <div class="mobile-drawer-header">
+        <CloudLogo />
+        <el-button :icon="Close" circle size="small" @click="mobileDrawerVisible = false" />
+      </div>
+      <el-menu
+        :default-active="activeMenu"
+        router
+        class="mobile-drawer-menu"
+        @select="mobileDrawerVisible = false"
+      >
+        <template v-for="item in visibleMenuItems" :key="item.path">
+          <el-menu-item :index="'/' + item.path" v-if="!item.children">
+            <el-icon :size="20"><component :is="item.meta.icon" /></el-icon>
+            <span>{{ item.meta.title }}</span>
+          </el-menu-item>
+          <el-sub-menu :index="item.path" v-else>
+            <template #title>
+              <el-icon :size="20"><component :is="item.meta.icon" /></el-icon>
+              <span>{{ item.meta.title }}</span>
+            </template>
+            <el-menu-item v-for="child in item.children" :key="child.path" :index="'/' + child.path">
+              {{ child.meta.title }}
+            </el-menu-item>
+          </el-sub-menu>
+        </template>
+      </el-menu>
+    </el-drawer>
+
+    <!-- ========== Main Area ========== -->
     <div class="layout-main">
       <!-- Header -->
       <header class="layout-header">
         <div class="header-left">
-          <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/home' }">Home</el-breadcrumb-item>
-            <el-breadcrumb-item v-if="currentRoute">{{ currentRoute }}</el-breadcrumb-item>
+          <button v-if="isMobile" class="mobile-menu-btn" @click="mobileDrawerVisible = true">
+            <el-icon :size="22"><Expand /></el-icon>
+          </button>
+          <CloudLogo v-if="isMobile" :collapsed="false" class="header-logo-mobile" />
+          <el-breadcrumb v-if="!isMobile" separator="/" class="header-breadcrumb">
+            <el-breadcrumb-item :to="{ path: '/home' }">
+              <el-icon :size="14"><HomeFilled /></el-icon>
+              <span style="margin-left:4px">首页</span>
+            </el-breadcrumb-item>
+            <el-breadcrumb-item v-if="currentRoute && currentRoute !== 'Home'">{{ currentRoute }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="header-right">
-          <el-dropdown trigger="click">
-            <div class="user-info">
-              <el-avatar :size="32" icon="UserFilled" />
-              <span class="user-name">{{ userName }}</span>
-              <el-icon class="user-arrow"><ArrowDown /></el-icon>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item>
-                  <el-icon><User /></el-icon> Profile
-                </el-dropdown-item>
-                <el-dropdown-item divided @click="handleLogout">
-                  <el-icon><SwitchButton /></el-icon> Logout
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <!-- Profile link replacing dropdown -->
+          <router-link to="/user/profile" class="user-profile-link">
+            <el-avatar :size="34" icon="UserFilled" style="background:var(--primary-200);color:var(--primary-600)" />
+            <span v-if="!isMobile" class="user-name">{{ userName }}</span>
+          </router-link>
         </div>
       </header>
 
@@ -82,58 +109,109 @@
           </transition>
         </router-view>
       </main>
+
+      <!-- Mobile Bottom Tab Bar -->
+      <nav v-if="isMobile" class="mobile-bottom-bar">
+        <div
+          v-for="item in bottomBarItems"
+          :key="item.path"
+          class="bottom-bar-item"
+          :class="{ active: activeMenu === '/' + item.path }"
+          @click="router.push('/' + item.path)"
+        >
+          <el-icon :size="20"><component :is="item.icon" /></el-icon>
+          <span class="bottom-bar-label">{{ item.label }}</span>
+        </div>
+      </nav>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import {
+  HomeFilled, FolderOpened, Share, Connection, Delete,
+  User, Coin, Fold, Expand, Close
+} from '@element-plus/icons-vue'
+import CloudLogo from '@/components/CloudLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
 const isCollapsed = ref(false)
+const isMobile = ref(false)
+const mobileDrawerVisible = ref(false)
 
 const userName = ref(localStorage.getItem('username') || 'Admin')
 
 const menuItems = computed(() => {
-  const routes = router.options.routes.find(r => r.path === '/')
-  return routes ? routes.children.filter(r => !r.meta?.hidden) : []
+  const mainRoute = router.options.routes.find(r => r.path === '/')
+  return mainRoute ? mainRoute.children.filter(r => !r.meta?.hidden) : []
+})
+
+// Show storage in sidebar too (not hidden)
+const visibleMenuItems = computed(() => {
+  return menuItems.value
 })
 
 const activeMenu = computed(() => route.path)
-
 const currentRoute = computed(() => route.meta?.title || '')
 
-function handleLogout() {
-  ElMessageBox.confirm('Are you sure you want to logout?', 'Confirm', {
-    type: 'warning'
-  }).then(() => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('username')
-    router.push('/login')
-  }).catch(() => {})
+const bottomBarItems = computed(() => {
+  // Show home, files, storage + profile in bottom bar (limited to 5)
+  const items = menuItems.value.slice(0, 4).map(r => ({
+    path: r.path,
+    label: r.meta?.title || r.path,
+    icon: r.meta?.icon || 'Menu'
+  }))
+  // Add profile at the end
+  items.push({
+    path: 'user/profile',
+    label: '我的',
+    icon: 'User'
+  })
+  return items.slice(0, 5)
+})
+
+function toggleSidebar() {
+  isCollapsed.value = !isCollapsed.value
 }
+
+function checkMobile() {
+  isMobile.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
 </script>
 
 <style scoped>
 .layout-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
-/* === Sidebar === */
+/* ============================================================
+   Sidebar — Warm Morandi
+   ============================================================ */
 .layout-sidebar {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
-  background: var(--neutral-800);
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--neutral-200);
   display: flex;
   flex-direction: column;
   transition: width var(--duration-normal) var(--ease-smooth);
   overflow: hidden;
   position: relative;
+  z-index: var(--z-sticky);
 }
 .layout-sidebar.collapsed {
   width: var(--sidebar-collapsed-width);
@@ -145,19 +223,56 @@ function handleLogout() {
   display: flex;
   align-items: center;
   padding: 0 var(--space-4);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--neutral-200);
 }
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--neutral-200);
-  white-space: nowrap;
+
+.sidebar-menu {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2) 0 52px;
 }
-.sidebar-title {
-  font-size: var(--fs-base);
+
+:deep(.sidebar-menu .el-menu-item) {
+  height: 44px;
+  line-height: 44px;
+  margin: 2px 8px;
+  border-radius: var(--radius-md) !important;
+  font-size: var(--fs-sm);
+  color: var(--neutral-600);
   font-weight: 500;
-  letter-spacing: 0.03em;
+  transition: all var(--duration-fast) var(--ease-smooth);
+}
+:deep(.sidebar-menu .el-menu-item:hover) {
+  background: var(--primary-50) !important;
+  color: var(--primary-600) !important;
+}
+:deep(.sidebar-menu .el-menu-item.is-active) {
+  background: var(--primary-50) !important;
+  color: var(--primary-600) !important;
+  font-weight: 600 !important;
+}
+:deep(.sidebar-menu .el-menu-item.is-active::before) {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--primary-500);
+  border-radius: 0 3px 3px 0;
+}
+:deep(.sidebar-menu .el-sub-menu__title) {
+  height: 44px;
+  line-height: 44px;
+  margin: 2px 8px;
+  border-radius: var(--radius-md);
+  color: var(--neutral-600);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+:deep(.sidebar-menu .el-sub-menu__title:hover) {
+  background: var(--primary-50);
+  color: var(--primary-600);
 }
 
 .sidebar-collapse-btn {
@@ -171,101 +286,211 @@ function handleLogout() {
   justify-content: center;
   cursor: pointer;
   color: var(--neutral-400);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  transition: color var(--duration-fast);
-}
-.sidebar-collapse-btn:hover {
-  color: var(--neutral-200);
-}
-
-:deep(.el-menu) {
-  border-right: none !important;
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 52px;
-}
-:deep(.el-menu-item) {
-  height: 42px;
-  line-height: 42px;
-  margin: 2px 8px;
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--neutral-200);
   transition: all var(--duration-fast) var(--ease-smooth);
 }
-:deep(.el-menu-item:hover) {
-  background: rgba(255, 255, 255, 0.06) !important;
-}
-:deep(.el-menu-item.is-active) {
-  background: var(--primary-600) !important;
-  color: #fff !important;
-}
-:deep(.el-sub-menu .el-menu-item) {
-  padding-left: 56px !important;
+.sidebar-collapse-btn:hover {
+  color: var(--primary-500);
+  background: var(--primary-50);
 }
 
-/* === Main Area === */
+/* ============================================================
+   Mobile Drawer
+   ============================================================ */
+:deep(.mobile-drawer .el-drawer__body) {
+  padding: 0;
+}
+.mobile-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--neutral-200);
+}
+.mobile-drawer-menu {
+  padding: var(--space-2) 0;
+}
+:deep(.mobile-drawer-menu .el-menu-item) {
+  height: 46px;
+  line-height: 46px;
+  font-size: var(--fs-base);
+  color: var(--neutral-600);
+  font-weight: 500;
+}
+:deep(.mobile-drawer-menu .el-menu-item:hover) {
+  background: var(--primary-50);
+}
+:deep(.mobile-drawer-menu .el-menu-item.is-active) {
+  background: var(--primary-50);
+  color: var(--primary-600);
+  font-weight: 600;
+}
+
+/* ============================================================
+   Main Area
+   ============================================================ */
 .layout-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  background: var(--bg-page);
 }
 
-/* === Header === */
+/* ============================================================
+   Header
+   ============================================================ */
 .layout-header {
   height: var(--header-height);
   min-height: var(--header-height);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--neutral-100);
+  background: var(--bg-elevated);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--neutral-200);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-5);
   z-index: var(--z-sticky);
 }
 
 .header-left {
   display: flex;
   align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-menu-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--neutral-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--duration-fast);
+  flex-shrink: 0;
+}
+.mobile-menu-btn:hover {
+  background: var(--neutral-100);
+}
+
+.header-logo-mobile {
+  flex-shrink: 0;
+}
+
+.header-breadcrumb {
+  flex-shrink: 0;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
-.user-info {
+/* Profile link — replaces dropdown */
+.user-profile-link {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   cursor: pointer;
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
   transition: background var(--duration-fast);
+  text-decoration: none;
+  color: inherit;
 }
-.user-info:hover {
-  background: var(--neutral-50);
+.user-profile-link:hover {
+  background: var(--primary-50);
 }
 .user-name {
   font-size: var(--fs-sm);
-  color: var(--neutral-600);
-  max-width: 120px;
+  font-weight: 500;
+  color: var(--neutral-700);
+  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.user-arrow {
-  font-size: var(--fs-xs);
-  color: var(--neutral-400);
-}
 
-/* === Content === */
+/* ============================================================
+   Content
+   ============================================================ */
 .layout-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-6);
-  background: var(--neutral-50);
+}
+
+/* ============================================================
+   Mobile Bottom Tab Bar
+   ============================================================ */
+.mobile-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: var(--mobile-bottom-bar-height);
+  min-height: var(--mobile-bottom-bar-height);
+  background: var(--bg-elevated);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--neutral-200);
+  padding: 0 var(--space-2);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: var(--z-sticky);
+  flex-shrink: 0;
+}
+
+.bottom-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--neutral-400);
+  transition: all var(--duration-fast) var(--ease-smooth);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.bottom-bar-item:hover,
+.bottom-bar-item:active {
+  color: var(--primary-500);
+}
+.bottom-bar-item.active {
+  color: var(--primary-500);
+}
+.bottom-bar-label {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 768px) {
+  .layout-content {
+    padding: var(--space-4) var(--space-3);
+    padding-bottom: calc(var(--space-4) + var(--mobile-bottom-bar-height));
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .layout-sidebar:not(.collapsed) {
+    width: 180px;
+    min-width: 180px;
+  }
 }
 </style>

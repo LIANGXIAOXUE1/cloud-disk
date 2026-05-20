@@ -1,15 +1,15 @@
 <template>
   <div class="share-page">
-    <h1 class="page-title">Share Manager</h1>
+    <h1 class="page-title">分享管理</h1>
 
     <div class="toolbar">
-      <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">New Share</el-button>
-      <el-input v-model="searchQuery" placeholder="Search shares..." :prefix-icon="Search" style="width: 260px" clearable />
+      <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">新建分享</el-button>
+      <el-input v-model="searchQuery" placeholder="搜索分享…" :prefix-icon="Search" style="width: 260px" clearable />
     </div>
 
     <el-card shadow="hover">
       <el-table :data="shareList" style="width: 100%" v-loading="loading" stripe>
-        <el-table-column prop="shareId" label="Share ID" width="140" />
+        <el-table-column prop="shareId" label="分享 ID" width="140" />
         <el-table-column prop="fileName" label="File" min-width="180">
           <template #default="{ row }">
             <div class="file-name-cell">
@@ -18,30 +18,30 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="sharePassword" label="Password" width="120">
+        <el-table-column prop="sharePassword" label="密码" width="120">
           <template #default="{ row }">
-            <el-tag v-if="row.sharePassword" type="warning" size="small">Protected</el-tag>
-            <el-tag v-else type="success" size="small">Public</el-tag>
+            <el-tag v-if="row.sharePassword" type="warning" size="small">有密码</el-tag>
+            <el-tag v-else type="success" size="small">公开</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Downloads" width="100">
+        <el-table-column label="下载" width="100">
           <template #default="{ row }">{{ row.downloadCount || 0 }}</template>
         </el-table-column>
-        <el-table-column label="Views" width="80">
+        <el-table-column label="浏览" width="80">
           <template #default="{ row }">{{ row.viewCount || 0 }}</template>
         </el-table-column>
         <el-table-column label="Status" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : row.status === 2 ? 'danger' : 'info'" size="small">
-              {{ row.status === 1 ? 'Active' : row.status === 2 ? 'Expired' : 'Cancelled' }}
+              {{ row.status === 1 ? '有效' : row.status === 2 ? '已过期' : '已取消' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="Created" width="180" />
-        <el-table-column label="Actions" width="140">
+        <el-table-column label="操作" width="140">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="copyLink(row)">Copy</el-button>
-            <el-button link type="danger" size="small" @click="handleCancel(row)">Cancel</el-button>
+            <el-button link type="primary" size="small" @click="copyLink(row)">复制</el-button>
+            <el-button link type="danger" size="small" @click="handleCancel(row)">取消</el-button>
           </template>
         </el-table-column>
       </el-table>

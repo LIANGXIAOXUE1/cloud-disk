@@ -1,0 +1,1 @@
+import{s as a}from"./request-DPqMW1XO.js";function n(r,e,t,s){return a({url:"/share/create",method:"post",params:{fileId:r,userId:e,password:t,expireType:s}})}function o(r,e){return a({url:"/share/cancel",method:"post",params:{shareId:r,userId:e}})}function h(r){return a({url:"/share/list",method:"get",params:{userId:r}})}export{n as a,o as c,h as g};

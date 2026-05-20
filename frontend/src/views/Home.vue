@@ -1,13 +1,13 @@
 <template>
   <div class="home-page">
-    <h1 class="page-title">Dashboard</h1>
+    <h1 class="page-title">控制台</h1>
 
     <!-- Stats Cards -->
     <el-row :gutter="20" class="stats-row">
       <el-col :xs="24" :sm="12" :lg="6" v-for="stat in stats" :key="stat.label">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
-            <div class="stat-icon" :style="{ background: stat.color + '15', color: stat.color }">
+            <div class="stat-icon" :style="{ background: stat.bg, color: stat.color }">
               <el-icon :size="28"><component :is="stat.icon" /></el-icon>
             </div>
             <div class="stat-info">
@@ -22,16 +22,16 @@
     <!-- Recent Activity -->
     <el-card shadow="hover" class="activity-card">
       <template #header>
-        <span class="card-header">Recent Activity</span>
+        <span class="card-header">最近动态</span>
       </template>
       <el-table :data="activities" style="width: 100%" stripe>
-        <el-table-column prop="file" label="File Name" />
-        <el-table-column prop="action" label="Action" width="180">
+        <el-table-column prop="file" label="文件名" />
+        <el-table-column prop="action" label="操作" width="120">
           <template #default="{ row }">
             <el-tag :type="row.tagType" size="small">{{ row.action }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="time" label="Time" width="180" />
+        <el-table-column prop="time" label="时间" width="180" />
       </el-table>
     </el-card>
   </div>
@@ -42,18 +42,18 @@ import { ref } from 'vue'
 import { FolderOpened, Coin, Share, List } from '@element-plus/icons-vue'
 
 const stats = ref([
-  { icon: FolderOpened, value: '128', label: 'Total Files', color: 'var(--primary-500)' },
-  { icon: Coin, value: '2.4 GB', label: 'Used Storage', color: 'var(--success)' },
-  { icon: Share, value: '6', label: 'Active Shares', color: 'var(--warning)' },
-  { icon: List, value: '3', label: 'Transfer Tasks', color: 'var(--info)' }
+  { icon: FolderOpened, value: '128', label: '文件总数', color: '#8FB9A8', bg: 'rgba(143,185,168,0.12)' },
+  { icon: Coin, value: '2.4 GB', label: '已用空间', color: '#67c2a3', bg: 'rgba(103,194,163,0.12)' },
+  { icon: Share, value: '6', label: '活跃分享', color: '#e6a23c', bg: 'rgba(230,162,60,0.12)' },
+  { icon: List, value: '3', label: '转存任务', color: '#6b7fd4', bg: 'rgba(107,127,212,0.12)' }
 ])
 
 const activities = ref([
-  { file: 'project-docs.zip', action: 'Uploaded', tagType: 'success', time: '2026-05-18 10:30' },
-  { file: 'images/', action: 'Created', tagType: '', time: '2026-05-18 09:15' },
-  { file: 'design-v2.psd', action: 'Shared', tagType: 'warning', time: '2026-05-17 16:45' },
-  { file: 'backup-2026.zip', action: 'Recycled', tagType: 'danger', time: '2026-05-17 14:20' },
-  { file: 'notes.txt', action: 'Transferred', tagType: 'info', time: '2026-05-17 11:00' }
+  { file: 'project-docs.zip', action: '上传', tagType: 'success', time: '2026-05-18 10:30' },
+  { file: 'images/', action: '创建', tagType: '', time: '2026-05-18 09:15' },
+  { file: 'design-v2.psd', action: '分享', tagType: 'warning', time: '2026-05-17 16:45' },
+  { file: 'backup-2026.zip', action: '删除', tagType: 'danger', time: '2026-05-17 14:20' },
+  { file: 'notes.txt', action: '转存', tagType: 'info', time: '2026-05-17 11:00' }
 ])
 </script>
 

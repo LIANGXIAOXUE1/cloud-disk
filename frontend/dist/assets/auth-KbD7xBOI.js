@@ -1,0 +1,1 @@
+import{s as t}from"./request-DPqMW1XO.js";function o(r){return t({url:"/auth/login",method:"post",params:r})}function s(r){return t({url:"/auth/changePassword",method:"post",params:r})}function e(r){return t({url:"/auth/userInfo",method:"get",params:{userId:r}})}export{s as c,e as g,o as l};
