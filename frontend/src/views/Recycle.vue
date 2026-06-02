@@ -43,18 +43,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, FolderOpened, Document } from '@element-plus/icons-vue'
 import { getRecycleList, restoreFile, permanentDelete, clearRecycle } from '@/api/modules/recycle'
 
-const userId = 1
-
 const recycleList = ref([])
 const loading = ref(false)
-const selectedRows = ref([])
 
 onMounted(() => loadRecycle())
 
 async function loadRecycle() {
   loading.value = true
   try {
-    const res = await getRecycleList(userId)
+    const res = await getRecycleList()
     recycleList.value = res.data?.list || []
   } catch (e) {
     recycleList.value = []
@@ -93,7 +90,7 @@ async function handleClear() {
       cancelButtonText: 'Cancel',
       type: 'error'
     })
-    await clearRecycle(userId)
+    await clearRecycle()
     ElMessage.success('Recycle bin cleared')
     loadRecycle()
   } catch (e) { /* cancelled */ }

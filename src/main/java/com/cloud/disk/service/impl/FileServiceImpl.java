@@ -34,6 +34,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
                 .eq(FileInfo::getUserId, userId)
                 .eq(parentId != null, FileInfo::getParentId, parentId)
                 .eq(FileInfo::getDeleted, 0)
+                .ne(FileInfo::getFileStatus, 2)   // 排除回收站中的文件
                 .orderByDesc(FileInfo::getIsFolder)
                 .orderByAsc(FileInfo::getFileName);
 

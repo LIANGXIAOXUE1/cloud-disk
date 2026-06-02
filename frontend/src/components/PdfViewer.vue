@@ -227,14 +227,14 @@ async function loadPdf() {
     try {
       const toc = await pdfDoc.getOutline()
       if (toc && toc.length) {
-        outline.value = flattenOutline(toc)
+        outline.value = await flattenOutline(toc, pdfDoc)
       }
     } catch (_) { /* no TOC */ }
 
     loading.value = false
 
     await nextTick()
-    renderVisiblePages()
+    renderAllPages()
   } catch (e) {
     console.error('PDF load error:', e)
     loading.value = false
@@ -242,70 +242,47 @@ async function loadPdf() {
   }
 }
 
-function flattenOutline(items, depth = 1) {
+async function flattenOutline(items, pdfDoc, depth = 1) {
   let result = []
   for (const item of items) {
+    let pageNumber = null
+    if (item.dest) {
+      try {
+        const idx = await pdfDoc.getPageIndex(item.dest[0])
+        pageNumber = idx + 1
+      } catch (_) { pageNumber = '?' }
+    }
     result.push({
       title: item.title,
-      pageNumber: item.dest ? null : null,
-      dest: item.dest,
+      pageNumber,
       depth
     })
     if (item.items && item.items.length) {
-      result.push(...flattenOutline(item.items, depth + 1))
+      result.push(...(await flattenOutline(item.items, pdfDoc, depth + 1)))
     }
   }
-  // Resolve page numbers from destinations
-  pdfDoc?.getPageIndex && result.forEach(async (r) => {
-    if (r.dest && !r.pageNumber) {
-      try {
-        const idx = await pdfDoc.getPageIndex(r.dest[0])
-        r.pageNumber = idx + 1
-      } catch (_) { r.pageNumber = '?' }
-    }
-  })
   return result
 }
 
 // ── rendering ──
-async function renderVisiblePages() {
+async function renderAllPages() {
   if (!pdfDoc || loading.value || error.value) return
 
-  const container = scrollContainer.value
-  if (!container) return
-
-  const containerTop = container.scrollTop
-  const containerHeight = container.clientHeight
-  const containerBottom = containerTop + containerHeight
-
-  // Determine which pages are visible
-  const estimatedPageHeight = canvasWidth.value * 1.4 * scale.value / 1.5 + 30
-  const firstVisible = Math.max(1, Math.floor(containerTop / estimatedPageHeight) - 1)
-  const lastVisible = Math.min(totalPages.value, Math.ceil(containerBottom / estimatedPageHeight) + 1)
-
-  const pagesToRender = []
-  for (let i = firstVisible; i <= lastVisible; i++) {
-    if (!renderedPages.value.includes(i)) {
-      pagesToRender.push(i)
-    }
+  const pages = []
+  for (let i = 1; i <= totalPages.value; i++) {
+    pages.push(i)
   }
-
-  // Remove pages far out of view (keep a buffer)
-  const minRender = Math.max(1, firstVisible - 3)
-  const maxRender = Math.min(totalPages.value, lastVisible + 3)
-  renderedPages.value = renderedPages.value.filter(p => p >= minRender && p <= maxRender)
-  for (let i = firstVisible; i <= lastVisible; i++) {
-    if (!renderedPages.value.includes(i)) {
-      renderedPages.value.push(i)
-    }
-  }
-  renderedPages.value.sort((a, b) => a - b)
+  renderedPages.value = pages
 
   await nextTick()
 
-  // Render each new page
-  for (const pageNum of pagesToRender) {
-    await renderPage(pageNum)
+  // Render pages sequentially in batches to avoid jank
+  for (let i = 1; i <= totalPages.value; i++) {
+    await renderPage(i)
+    if (i % 5 === 0) {
+      // Yield to browser every 5 pages
+      await new Promise(r => setTimeout(r, 0))
+    }
   }
 }
 

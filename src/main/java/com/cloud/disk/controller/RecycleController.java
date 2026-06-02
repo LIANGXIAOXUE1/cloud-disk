@@ -1,5 +1,6 @@
 package com.cloud.disk.controller;
 
+import com.cloud.disk.common.context.UserContext;
 import com.cloud.disk.common.result.Result;
 import com.cloud.disk.repository.entity.RecycleBin;
 import com.cloud.disk.service.api.IRecycleBinService;
@@ -21,7 +22,8 @@ public class RecycleController {
 
     @Operation(summary = "回收站列表")
     @GetMapping("/list")
-    public Result<Map<String, Object>> list(@RequestParam Long userId) {
+    public Result<Map<String, Object>> list() {
+        Long userId = UserContext.getCurrentUserId();
         List<RecycleBin> list = recycleBinService.listByUserId(userId);
         return Result.success(Map.of("list", list, "total", list.size()));
     }
@@ -52,7 +54,8 @@ public class RecycleController {
 
     @Operation(summary = "清空回收站")
     @PostMapping("/clear")
-    public Result<Map<String, Object>> clearRecycle(@RequestParam Long userId) {
+    public Result<Map<String, Object>> clearRecycle() {
+        Long userId = UserContext.getCurrentUserId();
         boolean ok = recycleBinService.clearRecycle(userId);
         return ok ? Result.success(Map.of("result", "OK"))
                   : Result.error(400, "清空失败");

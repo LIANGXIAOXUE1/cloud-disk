@@ -173,11 +173,12 @@ public class FileController {
             return;
         }
 
-        // 根据扩展名设置 Content-Type
         String contentType = getContentType(fileInfo.getFileType());
         response.setContentType(contentType);
         response.setContentLengthLong(fileInfo.getFileSize());
-        response.setHeader("Content-Disposition", "inline; filename=\"" + fileInfo.getFileName() + "\"");
+        // 中文文件名需 URL 编码，否则 Tomcat 会拒绝整个响应头
+        String encodedName = java.net.URLEncoder.encode(fileInfo.getFileName(), "UTF-8").replace("+", "%20");
+        response.setHeader("Content-Disposition", "inline; filename*=UTF-8''" + encodedName);
 
         try (OutputStream out = response.getOutputStream()) {
             Files.copy(filePath, out);

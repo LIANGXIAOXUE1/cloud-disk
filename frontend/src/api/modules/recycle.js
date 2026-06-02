@@ -1,7 +1,7 @@
 import request from '../request'
 
-export function getRecycleList(userId) {
-  return request({ url: '/recycle/list', method: 'get', params: { userId } })
+export function getRecycleList() {
+  return request({ url: '/recycle/list', method: 'get' })
 }
 
 export function restoreFile(recycleId) {
@@ -16,6 +16,6 @@ export function permanentDelete(recycleId) {
   return request({ url: '/recycle/permanentDelete', method: 'post', params: { recycleId } })
 }
 
-export function clearRecycle(userId) {
-  return request({ url: '/recycle/clear', method: 'post', params: { userId } })
+export function clearRecycle() {
+  return request({ url: '/recycle/clear', method: 'post' })
 }
