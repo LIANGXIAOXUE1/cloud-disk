@@ -150,8 +150,8 @@ const scale = ref(1.5)
 const canvasWidth = ref(800)
 
 const renderedPages = ref([])    // pages currently rendered
-const pageRefs = {}
-const canvasRefs = {}
+let pageRefs = {}
+let canvasRefs = {}
 
 // search
 const showSearch = ref(false)
@@ -236,6 +236,7 @@ async function loadPdf() {
     await nextTick()
     renderVisiblePages()
   } catch (e) {
+    console.error('PDF load error:', e)
     loading.value = false
     error.value = true
   }
@@ -324,7 +325,9 @@ async function renderPage(pageNum) {
 
     const ctx = canvas.getContext('2d')
     await page.render({ canvasContext: ctx, viewport }).promise
-  } catch (_) { /* page render error */ }
+  } catch (e) {
+    console.error('PDF page render error:', pageNum, e)
+  }
 }
 
 function onScroll() {

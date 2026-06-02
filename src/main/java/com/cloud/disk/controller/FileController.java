@@ -156,8 +156,7 @@ public class FileController {
         return Result.success(space);
     }
 
-    @Operation(summary = "流式输出文件", description = "根据文件 ID 将文件内容以流方式输出，用于图片/视频/音频在线预览，自动设置 Content-Type")
-    @CheckFileOwner
+    @Operation(summary = "流式输出文件", description = "根据文件 ID 将文件内容以流方式输出，用于图片/视频/音频/PDF在线预览")
     @GetMapping("/stream/{fileId}")
     public void stream(
             @Parameter(description = "文件 ID") @PathVariable Long fileId,
