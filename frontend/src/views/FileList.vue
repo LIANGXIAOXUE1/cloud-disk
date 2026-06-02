@@ -96,6 +96,12 @@
 
     <!-- Image Viewer -->
     <ImageViewer v-model="viewerVisible" :images="viewerImages" :initial-index="viewerIndex" />
+
+    <!-- PDF Viewer -->
+    <PdfViewer v-model="pdfVisible" :file="pdfFile" />
+
+    <!-- Code Viewer -->
+    <CodeViewer v-model="codeVisible" :file="codeFile" />
   </div>
 </template>
 
@@ -110,6 +116,8 @@ import { getFileList, searchFiles, createFolder, renameFile, deleteFile } from '
 import { createShare } from '@/api/modules/share'
 import UploadZone from '@/components/UploadZone.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
+import PdfViewer from '@/components/PdfViewer.vue'
+import CodeViewer from '@/components/CodeViewer.vue'
 
 const userId = 1
 
@@ -133,6 +141,14 @@ const sharePassword = ref('')
 const viewerVisible = ref(false)
 const viewerImages = ref([])
 const viewerIndex = ref(0)
+
+// PDF 预览
+const pdfVisible = ref(false)
+const pdfFile = ref(null)
+
+// 文本/代码预览
+const codeVisible = ref(false)
+const codeFile = ref(null)
 
 onMounted(() => loadFiles())
 
@@ -188,6 +204,12 @@ function handleRowClick(row) {
     viewerImages.value = fileList.value
     viewerIndex.value = fileList.value.findIndex(f => f.id === row.id)
     viewerVisible.value = true
+  } else if (isPdfFile(row)) {
+    pdfFile.value = row
+    pdfVisible.value = true
+  } else if (isTextFile(row)) {
+    codeFile.value = row
+    codeVisible.value = true
   }
 }
 
@@ -262,6 +284,18 @@ watch(searchQuery, () => {
 function isImageFile(row) {
   const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico']
   return !row.isFolder && imgExts.includes((row.fileType || '').toLowerCase())
+}
+
+function isPdfFile(row) {
+  return !row.isFolder && (row.fileType || '').toLowerCase() === 'pdf'
+}
+
+function isTextFile(row) {
+  const textExts = ['txt', 'md', 'markdown', 'json', 'xml', 'html', 'htm', 'yaml', 'yml',
+    'py', 'java', 'js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'less',
+    'sql', 'sh', 'bat', 'ps1', 'ini', 'cfg', 'log', 'c', 'cpp', 'cs',
+    'go', 'rs', 'php', 'rb', 'swift', 'kt', 'vue', 'svelte']
+  return !row.isFolder && textExts.includes((row.fileType || '').toLowerCase())
 }
 
 function getFileIcon(row) {
