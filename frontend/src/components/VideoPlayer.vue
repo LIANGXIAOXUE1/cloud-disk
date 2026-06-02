@@ -79,8 +79,17 @@ function initPlayer() {
       fluid: true,
       playbackRates: [0.5, 1, 1.25, 1.5, 2],
       controlBar: {
-        pictureInPictureToggle: true,
-        playbackRateMenuButton: true
+        children: [
+          'playToggle',
+          'volumePanel',
+          'currentTimeDisplay',
+          'timeDivider',
+          'durationDisplay',
+          'progressControl',
+          'playbackRateMenuButton',
+          'pictureInPictureToggle',
+          'fullscreenToggle'
+        ]
       },
       sources: [{
         src: streamUrl.value,
@@ -205,17 +214,12 @@ onUnmounted(() => {
   max-width: 100%;
   max-height: calc(100vh - 100px);
   border-radius: 4px;
-  overflow: hidden;
 }
 
-.video-status {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 16px;
+/* 确保控制栏内的按钮能完全展开 */
+.video-body :deep(.vjs-control-bar) {
+  flex-wrap: nowrap;
 }
-.video-error { color: rgba(255, 120, 120, 0.7); }
-
-.viewer-fade-enter-active, .viewer-fade-leave-active { transition: opacity 0.2s ease; }
-.viewer-fade-enter-from, .viewer-fade-leave-to { opacity: 0; }
 
 @media (max-width: 768px) {
   .video-body { padding: 0; align-items: flex-start; }
