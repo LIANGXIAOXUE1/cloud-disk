@@ -1,885 +1,138 @@
-我直接**基于你现在的项目蓝图 + 你已完成前3个任务 + 最新技术栈（SpringBoot + Vue3 + Sa-Token + Redisson + RabbitMQ + 策略模式）**
-给你**把 18 个任务全部优化、修正、补齐**，让整个开发流程**100%贴合你的项目、不踩坑、不乱码、不冲突、可直接照着做**。
+基于之前的分析，做了这些调整：
 
----
+全局异常处理提前到第二阶段开头
+接入 Knife4j API 文档
+增加单元测试
+参数校验并入异常处理任务
+网盘转存改用阿里云盘为主
+缩略图生成并入文件预览
+存储空间统计并入个人中心
+阶段	编号	任务	核心产出
+一	1	后端项目初始化 + UTF-8	✅
+2	数据库表 + 实体 + Mapper	✅
+3	前端初始化 + 路由 + 布局	✅
+4	Git 初始化 + 分支管理	✅
+二	5	用户模块：登录/注册/Sa-Token 鉴权 + 前端登录页	BCrypt 加密、路由守卫、Redisson 互斥登录
+6	全局异常处理 + 统一返回 + 参数校验 + Knife4j	所有后续接口自动受益，联调效率翻倍
+7	文件 CRUD + Redisson 锁 + 前端文件列表	新建/重命名/移动/删除，AOP 权限校验
+8	分片上传 + 断点续传 + 前端上传组件	Redis 分片状态、MinIO 合并、进度条
+9	存储策略模式 + 存储管理页	StorageStrategy 接口、MinIO/Aliyun/Cloud123/OneDrive
+10	文件预览 + 缩略图	图片/PDF/视频在线预览，异步缩略图生成
+11	RabbitMQ 异步配置 + 通知验证	交换机/队列/死信队列，注册成功通知闭环验证
+12	网盘转存：阿里云盘为主 + 百度预留接口	异步转存全流程，任务状态推送
+三	13	文件分享：提取码 + 有效期	链接生成/取消/下载，防刷机制
+14	全局搜索 + 回收站	跨存储搜索，还原/彻底删除/定时清理
+15	二级缓存优化：Redis + Caffeine	文件列表缓存、搜索结果缓存
+16	个人中心 + 存储空间统计	改密/头像/昵称，聚合空间计算
+四	17	单元测试 + 集成测试	Service 层覆盖率 ≥ 60%，核心流程集成测试
+18	前端 UI 美化 + 移动端适配	莫兰迪主题，响应式布局
+19	Docker Compose 一键部署	MySQL/Redis/RabbitMQ/MinIO/后端/前端全容器化
+20	文档 + 开源上线	README、部署教程、技术文档、架构图
+和旧版的主要变化
+变化	原因
+全局异常提前到任务 6	越早统一错误格式，后续 10+ 个接口开发越顺
+Knife4j 随任务 6 接入	不用每次手动拼 curl，浏览器直接调试
+参数校验并入任务 6	和异常处理天然绑定，校验失败统一返回
+任务 20 从 18 扩到 20	多了测试和 API 文档，对开源+面试都是刚需
+百度转存 → 阿里云盘转存	个人可申请，开源无风险
+缩略图并入文件预览	不单独拆任务，避免空壳 consumer
 
-# 一、你当前进度（已完成，不动）
-✅ 任务1：后端骨架 + 依赖配置（UTF-8）
-✅ 任务2：数据库表 + 实体 + Mapper
-✅ 任务3：前端骨架 + 路由 + 布局
 
----
 
-# 二、必须修正/补充的关键点（非常重要）
-## 1. 项目编码强制 UTF-8（你的 Windows GBK 系统必须加）
-所有配置文件、application.yml 必须加：
-```yaml
-spring:
-  banner:
-    charset: UTF-8
-  messages:
-    encoding: UTF-8
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
-server:
-  tomcat:
-    uri-encoding: UTF-8
-```
-否则中文会乱码。
+后端测试（共 10 条）
+启动后端：运行 CloudDiskApplication
+打开 Knife4j 文档：http://localhost:8080/doc.html
+按以下顺序在文档中测试 AuthController 的 5 个接口：
+#	接口	测试点	预期结果
+1	POST /api/auth/register	username:test01, password:123456	code=200，注册成功
+2	POST /api/auth/register	再次注册 test01	code≠200，提示用户名已存在
+3	POST /api/auth/register	password:123（<6位）	参数校验失败
+4	POST /api/auth/register	username:"" 空参数	参数校验失败
+5	POST /api/auth/login	test01 + 123456	code=200，返回 token
+6	POST /api/auth/login	test01 + 错误密码	code≠200，提示密码错误
+7	GET /api/auth/userInfo	Header cloud_disk_token: {第5步的token}	code=200，返回用户信息
+8	GET /api/auth/userInfo	不带 token	code=401，未登录
+9	POST /api/auth/logout	带 token	code=200，退出成功
+10	GET /api/auth/userInfo	用已退出的 token	code=401，token 失效
+前端测试（共 7 条）
+启动前端：cd frontend && npm run dev
 
-## 2. 包名全部避开 Java 关键字
-你原来的包结构没问题，我已全部检查：
-- `auth`、`file`、`storage`、`transfer`、`strategy`
-**全部安全，无关键字冲突**。
+#	操作	预期结果
+1	未登录访问 /#/home	自动跳转到登录页
+2	登录页输入错误密码	弹出错误提示，不跳转
+3	正确登录（test01/123456）	跳转到首页，localStorage 存真实 token
+4	登录后刷新页面	保持登录状态，不跳回登录页
+5	注册页两次密码不一致	表单校验提示"两次输入的密码不一致"
+6	注册成功（新用户）	提示"注册成功，请登录"并跳转登录页
+7	登录后 F12 Application → Local Storage	token 值为长 UUID，不是 logged-in
 
-## 3. 技术栈统一（最终版）
-**后端**
-SpringBoot3、MyBatis-Plus、MySQL8、Redis、Redisson、RabbitMQ、Sa-Token、MinIO（本地存储）、策略模式、AOP、异步任务
 
-**前端**
-Vue3、Vite、Element Plus、Pinia、Axios、路由守卫
-
----
-
-# 三、最终优化版 18 个任务（完全贴合你的云盘项目）
-我**保留你原来的结构**，但**修正不合理、缺漏、技术不匹配**的地方，让你直接照着开发不返工。
-
----
-
-# 第一阶段：基础搭建（已完成）
-## 任务1：初始化后端项目 + UTF-8 配置 ✅
-## 任务2：数据库设计 + 实体类 + Mapper ✅
-## 任务3：前端初始化 + 路由 + 布局 ✅
-
----
-
-# 第二阶段：核心业务（你现在要开始做）
-## 任务4：Git 初始化 + 分支规范
-补充：必须创建 `feature/*` 分支，每个任务一个分支。
-
----
-
-## 任务5：用户模块（登录/注册/Sa-Token 鉴权）
-**修正点**：
-- 统一使用 **Sa-Token** 做登录、鉴权、拦截
-- 加入 **密码加密 BCrypt**
-- 加入 **Redisson 限制重复登录**（可选加分）
-
-**产出**：
-- 登录接口
-- 注册接口
-- 获取用户信息
-- 路由守卫
-- 前端登录页联调完成
-
+任务6测试用例
 ---
 
 ## 任务6：文件基础 CRUD + 列表展示
-**修正点**：
-- 文件表必须包含 `storage_type` 存储策略字段
-- 加入 **AOP 权限校验**，只能看自己的文件
-- 加入 **Redisson 锁防止并发删除**
 
-**产出**：
-- 新建文件夹
-- 重命名
-- 移动
-- 删除（进入回收站）
-- 文件列表分页
+### 一、任务内容说明
 
----
+当前文件模块有骨架代码，但存在以下问题需要修复：
 
-## 任务7：分片上传 + 断点续传（核心）
-**修正点**：
-- 使用 **MinIO** 做本地存储
-- Redis 保存分片信息
-- 合并文件逻辑
-- 大文件自动分流
+| 问题 | 现状 | 需改成 |
+|------|------|--------|
+| userId 来源 | Controller 从请求参数拿 `userId` | 从 Sa-Token 当前登录用户（`UserContext`）获取 |
+| 返回格式 | 直接返回 `List` / `String` | 统一用 `Result` 包装 |
+| 权限校验 | 无，任何人传 fileId 就能操作 | AOP 切面：操作前校验文件是否属于当前用户 |
+| 删除逻辑 | 只改 `fileStatus=2` | 同时写入 `recycle_bin` 表，记录删除时间 |
+| 同名检查 | 无 | 创建/重命名/移动时检查目标位置是否已存在同名文件 |
+| 分页 | 无 | 文件列表接口加分页参数 |
+| 批量删除 | 无 Controller | 新增 `batchDelete` |
 
-**产出**：
-- 上传初始化
-- 分片上传
-- 合并文件
-- 断点续传
-- 前端上传进度条
+### 二、为什么用 AOP 做权限校验？
 
----
+文件模块有 7 个操作都涉及单文件归属校验（重命名、移动、复制、删除、下载、预览等）。如果每个方法里都写：
 
-## 任务8：存储策略模式（核心架构）
-**你项目最重要的技术亮点**
-- `StorageStrategy` 接口
-- MinioStrategy（本地）
-- 阿里云策略
-- 123云盘策略
-- 挂载本地目录（你特色功能）
+```java
+FileInfo f = getById(fileId);
+if (!f.getUserId().equals(currentUserId)) throw new BusinessException("无权操作");
+```
 
-**产出**：
-- 策略模式完全实现
-- 存储自动调度
-- 前端存储管理页面
+代码重复 7 遍。用 AOP 切面可以在方法执行前统一拦截，只写一次。
 
----
+核心思路：
+- 自定义注解 `@CheckFileOwner`
+- 切面类解析方法参数中的 `fileId`，查数据库比对 `userId`
+- 不匹配直接抛异常
 
-## 任务9：存储空间统计 + 本地挂载指引
-**新增任务（你项目必须有）**
-- 总空间、已用空间、剩余空间
-- 云端存储 + 本地挂载存储分开显示
-- 新手教程文案区
+这和 Sa-Token 的路由拦截是两层防护：路由拦截管"登没登录"，AOP 拦"是不是你的文件"。
 
----
+### 三、测试用例
 
-## 任务10：RabbitMQ 异步配置（为转存做准备）
-**修正点**：
-- 交换机、队列、路由键规范
-- 死信队列
-- 重试机制
+#### 后端测试用例（Knife4j，共 12 条）
 
----
+| # | 接口 | 测试场景 | 预期 |
+|---|------|----------|------|
+| 1 | GET `/api/file/list?parentId=0&page=1&size=20` | test01 用户查看根目录 | code=200，返回空列表（没传过文件） |
+| 2 | POST `/api/file/createFolder` | `parentId=0, folderName="我的文档"` | code=200，创建成功，返回文件夹信息 |
+| 3 | POST `/api/file/createFolder` | 再次创建同名 `folderName="我的文档"` | code≠200，提示"同名文件已存在" |
+| 4 | POST `/api/file/rename` | `fileId={文件夹id}, newName="我的资料"` | code=200，重命名成功 |
+| 5 | POST `/api/file/rename` | `fileId={不存在的id}` | code≠200，提示"文件不存在" |
+| 6 | POST `/api/file/rename` | `fileId={另一个用户的文件id}` | code≠200，提示"无权操作"（AOP拦截） |
+| 7 | POST `/api/file/move` | `fileId={文件夹id}, targetParentId={其他folderId}` | code=200，移动成功，原位置不再显示 |
+| 8 | POST `/api/file/copy` | `fileId={某个文件id}, targetParentId=0` | code=200，复制成功，根目录多一份 |
+| 9 | POST `/api/file/delete` | `fileId={某个文件id}` | code=200，文件消失，recycle_bin表多一条记录 |
+| 10 | POST `/api/file/batchDelete` | `fileIds=[id1, id2]` | code=200，批量删除，回收站各有一条 |
+| 11 | GET `/api/file/list` | 切换到 test02 的 token，访问 root | 只看到 test02 的文件，看不到 test01 的 |
+| 12 | POST `/api/file/delete` | 用 test02 的 token 删 test01 的文件 | code≠200，AOP 拦截"无权操作" |
 
-## 任务11：百度网盘转存（异步 + 服务端执行）
-**你项目最大亮点**
-- 解析分享链接
-- 服务端拉取
-- 异步转存
-- 可直接转到**本地挂载目录**
+#### 前端测试用例（共 5 条）
 
-**产出**：
-- 添加转存任务
-- 转存中/成功/失败
-- 前端任务列表
+| # | 操作 | 预期 |
+|---|------|------|
+| 1 | 登录后进入"文件管理"页 | 显示根目录文件列表（含分页） |
+| 2 | 点击"新建文件夹"，输入名称 | 列表刷新，新增一栏 |
+| 3 | 右键某文件 → 重命名，输入新名称 | 文件名更新 |
+| 4 | 右键某文件 → 删除 | 文件从列表消失 |
+| 5 | F12 Network 面板确认所有请求 | 都带 `cloud_disk_token`，无 401 |
 
 ---
 
-## 任务12：文件下载 + 本地挂载直接读取
-**新增（必须加）**
-- 云端文件下载
-- 本地挂载文件**直接本地读取，不下传**
 
----
-
-# 第三阶段：体验优化
-## 任务13：全局异常处理 + 统一返回结果
-## 任务14：全局搜索 + Redis 缓存
-## 任务15：回收站（还原/彻底删除）
-## 任务16：文件分享（提取码 + 有效期）
-## 任务17：个人中心（修改密码、头像、昵称）
-## 任务18：前端 UI 美化（莫兰迪主题）
-
----
-
-# 四、最终 18 个任务（最终可直接开发版）
-## 第一阶段：基础
-1. 后端项目初始化 + UTF-8 ✅
-2. 数据库表结构 ✅
-3. 前端初始化 + 路由 ✅
-
-## 第二阶段：核心
-4. Git 分支管理
-5. 用户登录注册 + Sa-Token 鉴权
-6. 文件 CRUD + 权限校验
-7. 分片上传 + 断点续传
-8. 存储策略模式（核心架构）
-9. 存储空间统计 + 本地挂载说明
-10. RabbitMQ 异步配置
-11. 百度网盘转存（核心特色）
-12. 文件下载 + 本地挂载直读
-
-## 第三阶段：完善
-13. 全局异常处理
-14. 全局搜索
-15. 回收站
-16. 文件分享
-17. 个人中心（改密、头像、资料）
-18. 前端 UI 美化（莫兰迪风格）
-
----
-
-# 五、我能马上帮你继续做的（你只需要说“开始”）
-1. 给你生成 **任务4 Git 完整命令**
-2. 给你生成 **任务5 用户模块完整代码**（Sa-Token）
-3. 给你生成 **任务6 文件CRUD**
-4. 给你生成 **任务7 分片上传完整版**
-5. 给你生成 **任务8 策略模式完整代码**（你最亮的点）
-
-你现在要**继续从任务4开始开发吗？**
-我可以直接给你**可复制的代码**，不用你写一行。，是按这个任务以及蓝图吗？私人聚合云盘项目 - 完整系统蓝图
-一、整体模块划分
-1.1 后端模块架构
-模块名称    核心职责
-auth-module    用户注册/登录、鉴权、token管理
-file-module    文件上传/下载/管理、版本控制
-storage-module    多存储策略抽象、聚合调度
-preview-module    文件在线预览、格式转换
-share-module    分享链接生成、提取码校验
-transfer-module    百度网盘转存、异步任务调度
-search-module    全局搜索、索引管理
-recycle-module    回收站、文件彻底删除
-1.2 前端模块架构
-模块名称    页面/组件
-auth-pages    Login、Register、ForgotPassword
-main-pages    Dashboard、Home
-file-pages    FileManager、FilePreview、Upload
-share-pages    ShareList、ShareDetail
-transfer-pages    TransferList、AddTask
-settings-pages    Profile、StorageBinding、PasswordChange
-common-components    UploadDialog、PreviewDialog、Breadcrumb
-二、后端核心包结构（com.cloud.disk）
-com.cloud.disk
-├── config/                          # 全局配置
-│   ├── MinioConfig.java            # MinIO本地存储配置
-│   ├── RedisConfig.java            # Redis连接与缓存配置
-│   ├── RabbitMQConfig.java          # 消息队列配置
-│   ├── SaTokenConfig.java          # Sa-Token鉴权配置
-│   └── WebMvcConfig.java            # 拦截器与跨域配置
-├── common/
-│   ├── constant/                   # 常量定义
-│   │   ├── StorageType.java        # 存储类型枚举
-│   │   ├── FileStatus.java         # 文件状态枚举
-│   │   └── ErrorCode.java          # 错误码定义
-│   ├── exception/                  # 异常处理
-│   │   ├── BusinessException.java  # 业务异常基类
-│   │   └── FileException.java      # 文件操作异常
-│   ├── result/                     # 统一响应
-│   │   ├── Result.java             # 统一返回结构
-│   │   └── PageResult.java         # 分页返回结构
-│   └── utils/                      # 工具类
-│       ├── FileUtils.java          # 文件处理工具
-│       ├── IdGenerator.java        # ID生成器
-│       └── Md5Utils.java           # MD5工具
-├── context/                        # 请求上下文
-│   └── UserContext.java            # 当前登录用户信息
-├── aspect/                         # AOP切面
-│   ├── RateLimitAspect.java       # 限流切面
-│   └── LogAspect.java              # 日志切面
-├── filter/                         # 过滤器
-│   └── AuthFilter.java            # 鉴权过滤器
-├── config/                         # 配置（续）
-│   └── SecurityConfig.java         # 安全配置
-├── controller/                     # 控制层（按模块分包）
-│   ├── auth/                       # 认证模块
-│   │   ├── AuthController.java    # 登录/注册/登出
-│   │   └── UserController.java    # 用户信息/修改密码
-│   ├── file/                       # 文件模块
-│   │   ├── FileController.java    # 文件CRUD
-│   │   ├── UploadController.java  # 上传接口
-│   │   └── DownloadController.java # 下载接口
-│   ├── storage/                   # 存储模块
-│   │   ├── StorageController.java # 存储策略管理
-│   │   └── BindingController.java # 存储绑定管理
-│   ├── preview/                   # 预览模块
-│   │   └── PreviewController.java # 预览地址生成
-│   ├── share/                     # 分享模块
-│   │   ├── ShareController.java   # 分享链接管理
-│   │   └── ExtractController.java # 提取码校验
-│   ├── transfer/                  # 转存模块
-│   │   ├── TransferController.java # 转存任务管理
-│   │   └── BaiduController.java   # 百度网盘接口
-│   ├── search/                    # 搜索模块
-│   │   └── SearchController.java  # 全局搜索
-│   ├── recycle/                   # 回收站模块
-│   │   └── RecycleController.java # 回收站操作
-│   └── admin/                     # 管理模块（可选）
-│       └── AdminController.java   # 管理员接口
-├── service/                        # 业务层（按模块分包）
-│   ├── impl/                       # 实现类
-│   │   ├── auth/
-│   │   ├── file/
-│   │   ├── storage/
-│   │   ├── preview/
-│   │   ├── share/
-│   │   ├── transfer/
-│   │   ├── search/
-│   │   └── recycle/
-│   └── interface/                  # 接口定义
-│       ├── IFileService.java
-│       ├── IStorageService.java
-│       └── ...
-├── repository/                     # 持久层（MyBatis-Plus）
-│   ├── mapper/                     # Mapper接口
-│   │   ├── UserMapper.java
-│   │   ├── FileMapper.java
-│   │   ├── StorageBindingMapper.java
-│   │   └── ...
-│   └── entity/                     # 实体类
-│       ├── User.java
-│       ├── File.java
-│       ├── StorageBinding.java
-│       └── ...
-├── strategy/                       # 策略模式核心
-│   ├── StorageStrategy.java        # 存储策略接口
-│   ├── impl/
-│   │   ├── AliyunStrategy.java    # 阿里云盘策略
-│   │   ├── OneDriveStrategy.java  # OneDrive策略
-│   │   ├── Cloud123Strategy.java  # 123云盘策略
-│   │   └── MinioStrategy.java     # 本地MinIO策略
-│   └── context/
-│       └── StorageContext.java    # 策略调度上下文
-├── mq/                             # 消息队列
-│   ├── consumer/                   # 消费者
-│   │   ├── TransferConsumer.java  # 转存任务消费
-│   │   └── ThumbnailConsumer.java # 缩略图生成消费
-│   └── producer/
-│       └── TransferProducer.java # 转存任务生产者
-├── schedule/                       # 定时任务
-│   └── CleanSchedule.java         # 清理过期分享/临时文件
-└── security/                       # 安全相关
-    ├── PasswordEncoder.java        # 密码加密
-    └── TokenService.java          # Token服务
-三、前端页面路由结构
-3.1 路由分层结构
-// router/index.js - 路由配置
-const routes = [
-  // ==================== 静态路由（无需鉴权）====================
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('@/views/auth/Login.vue'),
-    meta: { title: '登录', requiresAuth: false }
-  },
-  {
-    path: '/register',
-    name: 'Register',
-    component: () => import('@/views/auth/Register.vue'),
-    meta: { title: '注册', requiresAuth: false }
-  },
-  {
-    path: '/share/:shareId',
-    name: 'ShareDownload',
-    component: () => import('@/views/share/ShareDownload.vue'),
-    meta: { title: '分享下载', requiresAuth: false }
-  },
-  // ==================== 动态路由（需鉴权）====================
-  {
-    path: '/',
-    component: Layout,
-    redirect: '/dashboard',
-    children: [
-      // ---------- 控制台 ----------
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('@/views/main/Dashboard.vue'),
-        meta: { title: '控制台', icon: 'HomeFilled' }
-      },
-      // ---------- 文件管理 ----------
-      {
-        path: 'files',
-        name: 'FileManager',
-        component: () => import('@/views/file/FileManager.vue'),
-        meta: { title: '我的文件', icon: 'Folder', keepAlive: true }
-      },
-      {
-        path: 'files/preview/:fileId',
-        name: 'FilePreview',
-        component: () => import('@/views/file/FilePreview.vue'),
-        meta: { title: '文件预览', hidden: true }
-      },
-      {
-        path: 'files/upload',
-        name: 'UploadCenter',
-        component: () => import('@/views/file/UploadCenter.vue'),
-        meta: { title: '上传中心', icon: 'Upload' }
-      },
-      // ---------- 分享管理 ----------
-      {
-        path: 'shares',
-        name: 'ShareList',
-        component: () => import('@/views/share/ShareList.vue'),
-        meta: { title: '我的分享', icon: 'Share' }
-      },
-      // ---------- 转存任务 ----------
-      {
-        path: 'transfer',
-        name: 'TransferList',
-        component: () => import('@/views/transfer/TransferList.vue'),
-        meta: { title: '百度转存', icon: 'Link' }
-      },
-      {
-        path: 'transfer/add',
-        name: 'AddTransfer',
-        component: () => import('@/views/transfer/AddTransfer.vue'),
-        meta: { title: '添加转存任务', hidden: true }
-      },
-      // ---------- 回收站 ----------
-      {
-        path: 'recycle',
-        name: 'RecycleBin',
-        component: () => import('@/views/recycle/RecycleBin.vue'),
-        meta: { title: '回收站', icon: 'Delete' }
-      },
-      // ---------- 搜索 ----------
-      {
-        path: 'search',
-        name: 'GlobalSearch',
-        component: () => import('@/views/search/GlobalSearch.vue'),
-        meta: { title: '全局搜索', icon: 'Search' }
-      },
-      // ---------- 个人中心 ----------
-      {
-        path: 'profile',
-        name: 'UserProfile',
-        component: () => import('@/views/settings/Profile.vue'),
-        meta: { title: '个人资料', icon: 'User' }
-      },
-      {
-        path: 'storage-binding',
-        name: 'StorageBinding',
-        component: () => import('@/views/settings/StorageBinding.vue'),
-        meta: { title: '存储绑定', icon: 'Connection' }
-      },
-      {
-        path: 'change-password',
-        name: 'ChangePassword',
-        component: () => import('@/views/settings/ChangePassword.vue'),
-        meta: { title: '修改密码', hidden: true }
-      },
-    ]
-  },
-  // ==================== 404 ============
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: () => import('@/views/error/404.vue')
-  }
-]
-3.2 页面功能说明
-页面路径    组件名
-/login    Login
-/register    Register
-/dashboard    Dashboard
-/files    FileManager
-/files/preview/:id    FilePreview
-/files/upload    UploadCenter
-/shares    ShareList
-/share/:shareId    ShareDownload
-/transfer    TransferList
-/transfer/add    AddTransfer
-/recycle    RecycleBin
-/search    GlobalSearch
-/profile    UserProfile
-/storage-binding    StorageBinding
-/change-password    ChangePassword
-四、核心业务数据流
-4.1 用户上传文件流程（分片上传+断点续传）
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              用户上传文件完整流程                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  【阶段一：初始化上传】                                                       │
-│  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐    ┌────────────┐ │
-│  │ 前端      │───▶│ UploadController │───▶│ FileService    │───▶│ Redis     │ │
-│  │ 选择文件   │    │ /upload/init   │    │ 预生成文件记录  │    │ 保存分片元数据│ │
-│  └──────────┘    └──────────────┘    └─────────────────┘    └────────────┘ │
-│       │                │                      │                    │        │
-│       │         返回uploadId           持久化fileId           记录分片状态   │
-│       │                │                      │                    │        │
-│  【阶段二：分片上传】                                                         │
-│  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐    ┌────────────┐ │
-│  │ 前端      │───▶│ UploadController │───▶│ FileService    │───▶│ MinIO      │ │
-│  │ 循环分片   │    │ /upload/chunk   │    │ 校验分片序号   │    │ 临时存储   │ │
-│  └──────────┘    └──────────────┘    └─────────────────┘    └────────────┘ │
-│       │                │                      │                    │        │
-│       │         返回已上传分片列表            返回存储路径             │        │
-│       │                │                      │                    │        │
-│  【阶段三：合并分片】                                                         │
-│  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐    ┌────────────┐ │
-│  │ 前端      │───▶│ UploadController │───▶│ FileService    │───▶│ MinIO      │ │
-│  │ 发送合并   │    │ /upload/merge   │    │ 触发MinIO合并  │    │ 合并分片   │ │
-│  └──────────┘    └──────────────┘    └─────────────────┘    └────────────┘ │
-│       │                │                      │                    │        │
-│       │         返回最终文件信息             更新文件状态             │        │
-│       │                │                      │                    │        │
-│  【阶段四：存储策略分发】（可选：自动分流到网盘）                              │
-│  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐                   │
-│  │ FileService│───▶│ StorageContext│───▶│ AliyunStrategy │                   │
-│  │ 判断文件大小 │    │ 路由到策略    │    │ 上传到阿里云盘  │                   │
-│  └──────────┘    └──────────────┘    └─────────────────┘                   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-关键设计点：
-
-1. uploadId：Redis生成唯一标识，关联分片信息，支持页面关闭后续传
-
-2. 分片元数据：Redis缓存分片上传状态（chunkCount、uploadedChunks），合并后清除
-
-3. MinIO临时存储：分片先存本地MinIO，合并成功后删除分片，释放空间
-
-4. 存储分流：大文件（>100MB）自动上传阿里云盘，私密文件留本地MinIO
-   4.2 百度网盘转存流程（RabbitMQ异步）
-   ┌─────────────────────────────────────────────────────────────────────────────┐
-   │                            百度网盘转存完整流程                               │
-   ├─────────────────────────────────────────────────────────────────────────────┤
-   │                                                                             │
-   │  【阶段一：添加转存任务】                                                     │
-   │  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐    ┌────────────┐ │
-   │  │ 前端      │───▶│ TransferController│───▶│ TransferService│───▶│ MySQL     │ │
-   │  │ 链接+提取码│    │ /transfer/add    │    │ 解析百度分享   │    │ 创建任务   │ │
-   │  └──────────┘    └──────────────┘    └─────────────────┘    └────────────┘ │
-   │       │                │                      │                    │        │
-   │       │         返回任务ID                 调用百度API              │        │
-   │       │                │                      验证提取码有效性        │        │
-   │       │                │                      │                    │        │
-   │  【阶段二：投递消息】                                                         │
-   │  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐                   │
-   │  │TransferService│───▶│ TransferProducer │───▶│ RabbitMQ      │                   │
-   │  │              │    │                │    │ 转存队列      │                   │
-   │  └──────────┘    └──────────────┘    └─────────────────┘                   │
-   │       │                │                      │                           │
-   │  消息内容：shareId, extractCode, targetPath, userId                       │
-   │                                                                             │
-   │  【阶段三：消费转存】（异步处理）                                             │
-   │  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐    ┌────────────┐ │
-   │  │ RabbitMQ │───▶│TransferConsumer│───▶│ BaiduAPI Service│───│ 存储服务   │ │
-   │  │ 消息触发  │    │ 监听转存队列   │    │ 调用百度开放API  │    │ 分发到对应 │ │
-   │  └──────────┘    └──────────────┘    └─────────────────┘    └────────────┘ │
-   │       │                │                      │                    │        │
-   │       │         更新任务状态             下载到本地临时目录           目标存储  │
-   │       │         processing              │                    │        │
-   │       │                │                      │                    │        │
-   │  【阶段四：上传目标存储】                                                     │
-   │  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐                   │
-   │  │ 转存服务  │───▶│ StorageContext│───▶│ 策略实现类      │                   │
-   │  │ 读取临时文件│    │ 路由选择     │    │ Aliyun/Minio  │                   │
-   │  └──────────┘    └──────────────┘    └─────────────────┘                   │
-   │                                                                             │
-   │  【阶段五：回调更新】                                                         │
-   │  ┌──────────┐    ┌──────────────┐    ┌─────────────────┐                   │
-   │  │ 转存服务  │───▶│ FileService  │───▶│ MySQL          │                   │
-   │  │ 转存成功  │    │ 创建文件记录  │    │ 更新任务状态+文件│                   │
-   │  └──────────┘    └──────────────┘    └─────────────────┘                   │
-   │                                                                             │
-   │  【阶段六：通知前端】（WebSocket或轮询）                                      │
-   │  ┌──────────┐    ┌──────────────┐                                            │
-   │  │ 前端      │◀──│ 状态推送     │                                            │
-   │  │ 任务列表   │    │ 完成/失败    │                                            │
-   │  └──────────┘    └──────────────┘                                            │
-   │                                                                             │
-   └─────────────────────────────────────────────────────────────────────────────┘
-   关键设计点：
-
-5. 百度API：使用百度网盘开放平台API，需用户授权获取access_token
-
-6. 消息队列：转存为耗时操作（分钟级），必须异步，RabbitMQ保证消息不丢失
-
-7. 重试机制：转存失败自动重试3次，失败进入死信队列，人工处理
-
-8. 批量转存：多个链接逐个入队，前端可查看排队状态
-   五、关键接口列表（Controller层）
-   5.1 认证模块（auth）
-   接口路径
-   /api/auth/login
-   /api/auth/register
-   /api/auth/logout
-   /api/auth/getUserInfo
-   5.2 用户模块（user）
-   接口路径
-   /api/user/profile
-   /api/user/profile
-   /api/user/changePassword
-   /api/user/spaceStats
-   5.3 文件模块（file）
-   接口路径
-   /api/file/list
-   /api/file/createFolder
-   /api/file/rename
-   /api/file/move
-   /api/file/copy
-   /api/file/delete
-   /api/file/batchDelete
-   /api/file/getDownloadUrl
-   5.4 上传模块（upload）
-   接口路径
-   /api/upload/init
-   /api/upload/chunk
-   /api/upload/merge
-   /api/upload/chunks
-   5.5 预览模块（preview）
-   接口路径
-   /api/preview/getUrl
-   /api/preview/getVideoUrl
-   5.6 分享模块（share）
-   接口路径
-   /api/share/create
-   /api/share/list
-   /api/share/cancel
-   /api/share/extract
-   /api/share/download
-   5.7 转存模块（transfer）
-   接口路径
-   /api/transfer/add
-   /api/transfer/list
-   /api/transfer/detail
-   /api/transfer/cancel
-   /api/transfer/retry
-   5.8 搜索模块（search）
-   接口路径
-   /api/search/global
-   /api/search/suggest
-   5.9 回收站模块（recycle）
-   接口路径
-   /api/recycle/list
-   /api/recycle/restore
-   /api/recycle/permanentDelete
-   /api/recycle/clear
-   5.10 存储模块（storage）
-   接口路径
-   /api/storage/binding/list
-   /api/storage/binding/add
-   /api/storage/binding/remove
-   /api/storage/strategy/set
-   /api/storage/space/query
-   六、存储策略架构
-   6.1 策略接口定义
-   // 策略接口
-   public interface StorageStrategy {
-    // 存储类型标识
-    StorageType getType();
-    // 上传文件
-    String upload(InputStream input, String fileName, String path);
-    // 下载文件
-    InputStream download(String filePath);
-    // 删除文件
-    boolean delete(String filePath);
-    // 获取文件外链（临时/永久）
-    String getFileUrl(String filePath, long expireSeconds);
-    // 获取剩余空间
-    long getAvailableSpace();
-    // 文件是否存在
-    boolean exists(String filePath);
-   }
-   6.2 策略实现类
-   实现类    存储类型
-   MinioStrategy    LOCAL
-   AliyunStrategy    ALIYUN
-   OneDriveStrategy    ONEDRIVE
-   Cloud123Strategy    CLOUD123
-   6.3 策略调度上下文
-   @Service
-   public class StorageContext {
-    @Autowired
-    private Map<String, StorageStrategy> strategyMap;
-    // 根据存储类型获取策略
-    public StorageStrategy getStrategy(StorageType type) {
-   
-        return strategyMap.get(type.name());
-   
-    }
-    // 存储选择算法（自动分流）
-    public StorageType selectStorage(FileInfo fileInfo) {
-   
-        // 大文件 > 100MB → 阿里云盘（不限速）
-        // 私密文件标记 → 本地MinIO
-        // 小文件 → 就近原则/负载均衡
-        // OneDrive教育版 → 空间最大优先
-   
-    }
-   }
-   6.4 多存储聚合逻辑
-   ┌─────────────────────────────────────────────────────────────────┐
-   │                        多存储聚合架构                            │
-   ├─────────────────────────────────────────────────────────────────┤
-   │                                                                 │
-   │  ┌──────────────┐                                               │
-   │  │ 用户上传文件  │                                               │
-   │  └──────┬───────┘                                               │
-   │         │                                                        │
-   │         ▼                                                        │
-   │  ┌──────────────────────────────────────────────────┐          │
-   │  │            StorageContext 策略调度                 │          │
-   │  │  ┌────────────────────────────────────────────┐  │          │
-   │  │  │  存储选择算法：                              │  │          │
-   │  │  │  1. 文件大小 > 100MB → AliyunStrategy       │  │          │
-   │  │  │  2. 标记"私密" → MinioStrategy              │  │          │
-   │  │  │  3. 小文件 → 按空间占比分配                   │  │          │
-   │  │  │  4. 手动指定 → 强制使用指定存储               │  │          │
-   │  │  └────────────────────────────────────────────┘  │          │
-   │  └──────────────────────┬───────────────────────────┘          │
-   │                         │                                        │
-   │                         ▼                                        │
-   │  ┌────────────┬───────────┬────────────┬───────────┐            │
-   │  │ MinioStrategy│AliyunStrategy│OneDriveStrat│Cloud123Strat│   │
-   │  │   本地MinIO  │  阿里云盘    │  OneDrive  │  123云盘   │            │
-   │  │   私密/小文件 │  大文件/不限速 │  教育版无限  │  备份归档  │            │
-   │  └────────────┴───────────┴────────────┴───────────┘            │
-   │                                                                 │
-   │  ┌──────────────────────────────────────────────────┐          │
-   │  │              File表存储类型字段                     │          │
-   │  │  +--------+----------+----------+----------+      │          │
-   │  │  | fileId | path     | storage  | size     |      │          │
-   │  │  | 001    | /docs/a  | ALIYUN   | 200MB    |      │          │
-   │  │  | 002    | /photo  | MINIO    | 5MB      |      │          │
-   │  │  | 003    | /backup | CLOUD123 | 1GB      |      │          │
-   │  │  +--------+----------+----------+----------+      │          │
-   │  └──────────────────────────────────────────────────┘          │
-   │                                                                 │
-   │  ┌──────────────────────────────────────────────────┐          │
-   │  │              聚合空间计算逻辑                        │          │
-   │  │  totalSpace = Minio剩余 + Aliyun剩余 + OneDrive剩余│          │
-   │  │              + Cloud123剩余                        │          │
-   │  │  用户感知 = 统一视图，无存储差异                      │          │
-   │  └──────────────────────────────────────────────────┘          │
-   │                                                                 │
-   └─────────────────────────────────────────────────────────────────┘
-   6.5 存储绑定流程
-   ┌─────────────────────────────────────────────────────────────────┐
-   │                      存储绑定时序图                              │
-   ├─────────────────────────────────────────────────────────────────┤
-   │                                                                 │
-   │  用户                         后端                      外部API │
-   │  │                            │                             │    │
-   │  │  1.点击"绑定阿里云盘"        │                             │    │
-   │  │───────────────────────────▶│                             │    │
-   │  │                            │                             │    │
-   │  │                            │  2.生成OAuth授权URL          │    │
-   │  │                            │◀────────────────────────────│    │
-   │  │                            │                             │    │
-   │  │  3.跳转阿里云授权页         │                             │    │
-   │  │───────────────────────────────────────────────────────────│
-   │  │                            │                             │    │
-   │  │                            │  4.用户授权，返回code        │    │
-   │  │◀───────────────────────────────────────────────────────────│
-   │  │                            │                             │    │
-   │  │  5.前端携带code回调         │                             │    │
-   │  │───────────────────────────▶│                             │    │
-   │  │                            │                             │    │
-   │  │                            │  6.用code换取access_token   │    │
-   │  │                            │────────────────────────────▶│
-   │  │                            │◀────────────────────────────│    │
-   │  │                            │                             │    │
-   │  │                            │  7.调用API验证token有效性   │    │
-   │  │                            │────────────────────────────▶│    │
-   │  │                            │◀────────────────────────────│    │
-   │  │                            │                             │    │
-   │  │                            │  8.存储binding到MySQL        │    │
-   │  │                            │  (token加密存储)            │    │
-   │  │                            │                             │    │
-   │  │  9.绑定成功，返回存储信息    │                             │    │
-   │  │◀───────────────────────────│                             │    │
-   │                                                                 │
-   └─────────────────────────────────────────────────────────────────┘
-   架构总结
-   层级    核心组件
-   认证层    Sa-Token
-   Controller层    REST API
-   Service层    业务逻辑
-   Repository层    MyBatis-Plus
-   策略层    StorageStrategy
-   消息层    RabbitMQ
-   缓存层    Redis+Caffeine
-   前端    Vue3+ElementPlus
-   此蓝图覆盖私人聚合云盘全场景，贴合SpringBoot3企业级技术栈，每个模块均可独立扩展，满足开源展示与面试实战双重需求。
-
-
-我的环境是 Windows 中文系统(GBK)，项目必须用 UTF-8 无 BOM 编译，包名避开 Java 关键字。
-四、任务拆分（按 VibeCoding 模式，分 18 个任务，循序渐进，可直接照做）
-任务总数量：18 个（按优先级排序，先核心后亮点，先后端后前端，每个任务可独立完成）
-第一阶段：基础搭建（任务 1-4，搭建项目骨架，确保能正常运行）
-任务 1：初始化后端项目骨架 + 配置基础依赖
-核心：用 OpenCode 生成 SpringBoot 项目，导入 MySQL、Redis、RabbitMQ 等依赖，配置 application.yml
-产出：可正常启动的后端项目，无报错
-任务 2：设计数据库表 + 生成实体类 & Mapper
-核心：用 OpenCode 设计 MySQL 表（用户表、文件表、存储仓库表等），生成实体类、Mapper 接口
-产出：MySQL 表结构脚本、model/entity、mapper 层代码
-任务 3：搭建前端基础框架 + 路由配置
-核心：用 OpenCode 生成 Vue3 项目，配置 Element Plus、Axios、路由，搭建主布局（侧边栏 + 顶部栏）
-产出：可正常运行的前端项目，主布局渲染完成
-任务 4：Git 初始化 + 首次提交 & 分支管理
-核心：初始化 Git 仓库，绑定 GitHub，提交基础代码，新建 main 分支，开第一个功能分支
-产出：GitHub 仓库有基础代码，分支结构规范
-第二阶段：核心功能开发（任务 5-12，后端优先，前端同步跟进，确保核心流程跑通）
-任务 5：用户模块（后端）+ 登录注册页（前端）
-核心：实现用户注册、登录、Sa-Token 鉴权，前端登录注册页面开发 + 接口联调
-产出：用户可正常注册、登录，前端跳转正常，权限拦截生效
-任务 6：基础文件 CRUD（后端）+ 文件列表页（前端）
-核心：实现文件 / 文件夹的新增、删除、重命名、移动，前端文件列表展示 + 基础操作
-产出：后端接口可正常调用，前端能展示文件列表，完成基础操作
-任务 7：分片上传 + 断点续传（后端）+ 上传组件（前端）
-核心：实现分片上传、断点续传逻辑，前端上传组件开发（支持大文件、进度展示）
-产出：大文件可正常分片上传，断网后可断点续传，前端显示上传进度
-任务 8：存储策略模式（后端）+ 存储管理页（前端）
-核心：实现 StorageStrategy 接口及 4 种存储的具体实现，前端存储管理页（绑定、列表展示）
-产出：可绑定阿里云盘 / OneDrive 等存储，能切换存储策略上传文件
-任务 9：文件预览功能（后端 + 前端）
-核心：后端提供文件预览接口，前端集成预览组件，支持图片、PDF、视频等格式
-产出：点击文件可在线预览，无需下载
-任务 10：RabbitMQ 异步任务配置（后端）
-核心：配置 RabbitMQ，实现消息发送、接收，处理异步任务（为转存功能做准备）
-产出：RabbitMQ 能正常运行，异步任务可正常执行
-任务 11：百度网盘转存功能（后端）+ 转存任务页（前端）
-核心：调用百度网盘 API，实现链接解析、异步转存，前端转存任务页开发 + 进度展示
-产出：输入百度链接 + 提取码，可正常异步转存，前端查看任务进度
-任务 12：文件分享功能（后端）+ 分享管理页（前端）
-核心：实现分享链接生成、提取码校验、取消分享，前端分享管理页开发
-产出：可生成分享链接，他人输入提取码可下载，可取消分享
-第三阶段：优化 & 完善（任务 13-16，提升体验，修复 BUG，贴合面试 / 开源）
-任务 13：二级缓存优化（后端）
-核心：实现 Redis+Caffeine 二级缓存，缓存文件列表、搜索结果，优化查询速度
-产出：接口响应速度提升，缓存生效，避免频繁查询数据库
-任务 14：全局搜索 + 回收站功能（后端 + 前端）
-核心：实现全局文件搜索（Redis 缓存），回收站功能（文件删除 / 恢复）
-产出：可跨存储搜索文件，删除文件可进入回收站，支持恢复 / 彻底删除
-任务 15：异常处理 + 权限优化（后端）
-核心：实现全局异常拦截，优化 AOP 权限拦截（文件归属校验），避免越权访问
-产出：接口报错有友好提示，无法访问他人文件，权限校验严谨
-任务 16：前端优化（样式、交互、适配）
-核心：优化页面样式，完善交互（如上传进度提示、文件状态反馈），适配电脑端
-产出：页面美观，交互流畅，无卡顿、无样式错乱
-第四阶段：部署 & 开源（任务 17-18，完成项目闭环，可开源 / 面试展示）
-任务 17：Docker Compose 一键部署（后端 + 前端）
-核心：编写 Dockerfile、docker-compose.yml，打包全套服务（后端、MySQL、Redis 等）
-产出：一行命令可启动整个项目，无需手动配置环境
-任务 18：文档编写 + 开源上线
-核心：编写 README.md（部署教程、功能介绍）、技术文档，提交所有代码到 GitHub，开源
-产出：GitHub 仓库完整，文档清晰，小白可一键部署使用
-五、调试流程（每个任务通用，简单易操作，适配你的技术水平）
-核心原则：先后端后前端，先本地后部署，先单个接口后完整流程
-1. 后端调试（用 IDEA 社区版，无需记复杂操作）
-步骤 1：启动本地环境（必备）
-启动 MySQL、Redis、RabbitMQ（用 Docker 启动最方便，一行命令搞定）
-打开 IDEA，导入后端项目，配置 application.yml（修改数据库、Redis 地址，确保能连接）
-步骤 2：单个接口调试（最常用）
-找到要调试的 Controller 接口（如用户登录接口），在方法内打断点（点击行号左边，出现红色圆点）
-启动 SpringBoot 项目（点击 IDEA 右上角启动按钮）
-用 Postman/ApiPost 调用该接口（输入请求参数，如用户名、密码）
-程序会停在断点处，一步步执行（F8 跳过当前行，F7 进入方法内部），查看变量值、执行流程
-若出现报错，查看 IDEA 控制台的报错信息，定位问题（如数据库连接失败、参数错误）
-修复问题后，重启项目，重新调试，直到接口返回正常（200 状态码，正确响应数据）
-步骤 3：复杂功能调试（如分片上传、异步转存）
-分片上传：先调试单个分片上传接口，再调试分片合并接口，最后测试完整大文件上传
-异步转存：先调试百度链接解析接口，再查看 RabbitMQ 队列是否有消息，最后查看消费者是否正常执行、任务状态是否更新
-2. 前端调试（用 VS Code，可视化操作）
-步骤 1：启动前端项目
-打开 VS Code，进入前端项目目录，终端执行npm run dev，启动前端服务
-打开浏览器，访问前端地址（如http://localhost:8081）
-步骤 2：接口联调调试
-打开浏览器「开发者工具」（F12），切换到「Network」标签
-操作前端页面（如点击登录、上传文件），查看接口请求状态
-若接口返回 404/500：检查后端是否启动、接口路径是否正确、请求参数是否匹配
-若接口返回 200 但前端无展示：检查前端渲染逻辑、响应数据解析是否正确
-若样式错乱：切换到「Elements」标签，修改 CSS 样式，实时预览效果
-3. 全流程调试（每个任务完成后必做）
-例如：完成分片上传功能后，完整流程调试：
-启动后端、前端、MySQL、Redis、RabbitMQ
-登录前端账号，进入文件管理页
-选择一个大文件（如 100MB），点击上传，选择存储仓库
-查看前端上传进度，确认能正常上传
-上传完成后，查看文件列表是否显示该文件，点击预览是否正常
-尝试断网后重新上传，确认断点续传生效
-若有问题，分别调试后端接口、前端组件，定位问题并修复
-4. 调试注意事项（避坑关键）
-每次只调试一个功能 / 接口，不要同时调试多个，避免混乱
-遇到报错，先看控制台（IDEA 控制台、浏览器控制台），报错信息会明确提示问题所在（如 “数据库表不存在”“Token 无效”）
-AI 生成的代码可能有小 bug（如参数错误、路径错误），调试时重点查看这些细节
-调试完成后，记得 commit 代码（存档），避免调试崩了无法回退
-若调试半天找不到问题，可重新让 OpenCode 生成该模块代码，对比差异，快速定位问题
-六、VibeCoding+Git 配合技巧（高效开发，避免踩坑）
-每个任务对应一个 Git 分支（命名格式：feature / 任务名称，如 feature/user-login）
-每次启动任务前，先切回 main 分支，拉取最新代码，再开新分支
-每个任务完成（调试通过）后，commit 一次，提交信息规范（如feat: 完成用户登录功能）
-任务完成后，合并分支到 main，推送至 GitHub，再删除该任务分支
-用 OpenCode 生成代码前，先贴 CLAUDE.md 规则，确保代码符合技术栈、目录结构要求
-每次生成代码后，先调试，确认无问题再 commit，避免提交错误代码
-，结合刚刚讨论的技术栈，然后结合这个系统蓝图，看看这个任务流程有什么需要修改或者补充的，目前是做完了前三个任务。
