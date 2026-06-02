@@ -6,27 +6,21 @@
         class="video-overlay"
         tabindex="0"
         ref="overlayRef"
-        @keydown="onKeydown"
+        @keydown.escape="onEsc"
       >
-        <!-- Header -->
-        <div class="video-header">
-          <span class="video-name" :title="file?.fileName">{{ file?.fileName || '视频播放' }}</span>
-          <button class="video-btn video-btn-close" @click="close" title="关闭 (Esc)">✕</button>
-        </div>
+        <!-- Close button, floating top-right -->
+        <button class="video-close-btn" @click="close" title="关闭">✕</button>
 
-        <!-- Player -->
-        <div class="video-body">
-          <div v-if="loading" class="video-status">加载中...</div>
-          <div v-else-if="error" class="video-status video-error">视频加载失败</div>
-          <video
-            ref="videoRef"
-            class="video-js vjs-big-play-centered"
-            controls
-            preload="auto"
-            playsinline
-            crossorigin="anonymous"
-          />
-        </div>
+        <!-- Loading / Error -->
+        <div v-if="loading" class="video-status">加载中...</div>
+        <div v-else-if="error" class="video-status video-error">视频加载失败</div>
+
+        <!-- Video player -->
+        <video
+          ref="videoRef"
+          class="video-js vjs-big-play-centered"
+          crossorigin="anonymous"
+        />
       </div>
     </Transition>
   </Teleport>
@@ -77,7 +71,11 @@ function initPlayer() {
       autoplay: false,
       preload: 'auto',
       fluid: true,
+      fill: true,
       playbackRates: [0.5, 1, 1.25, 1.5, 2],
+      userActions: {
+        hotkeys: true
+      },
       controlBar: {
         children: [
           'playToggle',
@@ -97,25 +95,8 @@ function initPlayer() {
       }]
     })
 
-    player.on('ready', () => {
-      loading.value = false
-    })
-
-    player.on('error', () => {
-      loading.value = false
-      error.value = true
-    })
-
-    // Keyboard: seek with arrow keys
-    player.on('keydown', (e) => {
-      if (e.code === 'ArrowLeft') {
-        e.preventDefault()
-        player.currentTime(Math.max(0, player.currentTime() - 5))
-      } else if (e.code === 'ArrowRight') {
-        e.preventDefault()
-        player.currentTime(Math.min(player.duration(), player.currentTime() + 5))
-      }
-    })
+    player.on('ready', () => { loading.value = false })
+    player.on('error', () => { loading.value = false; error.value = true })
   } catch (e) {
     loading.value = false
     error.value = true
@@ -137,11 +118,10 @@ function getMimeType() {
   return types[ext] || 'video/mp4'
 }
 
-function onKeydown(e) {
-  if (!visible.value) return
-  if (e.key === 'Escape') {
-    // Don't close if exiting fullscreen
-    if (document.fullscreenElement) return
+function onEsc() {
+  if (document.fullscreenElement && player?.isFullscreen()) {
+    player.exitFullscreen()
+  } else {
     close()
   }
 }
@@ -150,9 +130,7 @@ function close() {
   emit('update:modelValue', false)
 }
 
-onUnmounted(() => {
-  destroyPlayer()
-})
+onUnmounted(() => { destroyPlayer() })
 </script>
 
 <style scoped>
@@ -160,69 +138,53 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 9995;
-  background: rgba(0, 0, 0, 0.94);
+  background: #000;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   outline: none;
 }
 
-.video-header {
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  height: 44px;
-  min-height: 44px;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 2;
-}
-.video-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 500px;
-  flex: 1;
-}
-.video-btn {
-  height: 32px;
-  min-width: 32px;
+.video-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
   border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s;
 }
-.video-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
-.video-btn-close:hover { background: rgba(255, 80, 80, 0.4) !important; }
-
-.video-body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+.video-close-btn:hover {
+  background: rgba(255, 80, 80, 0.6);
+  color: #fff;
 }
 
-.video-body :deep(.video-js) {
-  max-width: 100%;
-  max-height: calc(100vh - 100px);
-  border-radius: 4px;
+/* video.js fills the overlay */
+.video-overlay :deep(.video-js) {
+  width: 100%;
+  height: 100%;
 }
 
-/* 确保控制栏内的按钮能完全展开 */
-.video-body :deep(.vjs-control-bar) {
-  flex-wrap: nowrap;
+.video-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  z-index: 1;
 }
+.video-error { color: rgba(255, 120, 120, 0.7); }
 
-@media (max-width: 768px) {
-  .video-body { padding: 0; align-items: flex-start; }
-  .video-name { max-width: 180px; }
-}
+.viewer-fade-enter-active, .viewer-fade-leave-active { transition: opacity 0.2s ease; }
+.viewer-fade-enter-from, .viewer-fade-leave-to { opacity: 0; }
 </style>
