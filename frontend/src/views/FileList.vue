@@ -93,6 +93,9 @@
         <el-button type="primary" @click="confirmShare">创建</el-button>
       </template>
     </el-dialog>
+
+    <!-- Image Viewer -->
+    <ImageViewer v-model="viewerVisible" :images="viewerImages" :initial-index="viewerIndex" />
   </div>
 </template>
 
@@ -106,6 +109,7 @@ import {
 import { getFileList, searchFiles, createFolder, renameFile, deleteFile } from '@/api/modules/file'
 import { createShare } from '@/api/modules/share'
 import UploadZone from '@/components/UploadZone.vue'
+import ImageViewer from '@/components/ImageViewer.vue'
 
 const userId = 1
 
@@ -124,6 +128,11 @@ const renameValue = ref('')
 const showShareDialog = ref(false)
 const shareTarget = ref(null)
 const sharePassword = ref('')
+
+// 图片预览
+const viewerVisible = ref(false)
+const viewerImages = ref([])
+const viewerIndex = ref(0)
 
 onMounted(() => loadFiles())
 
@@ -175,6 +184,10 @@ function handleRowClick(row) {
     breadcrumbIds.value.push(row.id)
     currentParentId.value = row.id
     loadFiles()
+  } else if (isImageFile(row)) {
+    viewerImages.value = fileList.value
+    viewerIndex.value = fileList.value.findIndex(f => f.id === row.id)
+    viewerVisible.value = true
   }
 }
 
@@ -246,6 +259,11 @@ watch(searchQuery, () => {
 })
 
 // ====== Helpers ======
+function isImageFile(row) {
+  const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico']
+  return !row.isFolder && imgExts.includes((row.fileType || '').toLowerCase())
+}
+
 function getFileIcon(row) {
   if (row.isFolder) return FolderOpened
   const name = (row.fileName || '').toLowerCase()

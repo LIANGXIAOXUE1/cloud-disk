@@ -32,6 +32,15 @@ export function getDownloadUrl(fileId) {
   return request({ url: '/file/downloadUrl', method: 'get', params: { fileId } })
 }
 
+/**
+ * 获取文件流式访问 URL（用于图片/视频/音频在线预览）
+ * @param {Number} fileId 文件 ID
+ * @returns {String} 完整 URL
+ */
+export function getStreamUrl(fileId) {
+  return `/api/file/stream/${fileId}`
+}
+
 // ==================== 文件上传 ====================
 
 /**

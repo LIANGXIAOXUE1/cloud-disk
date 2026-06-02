@@ -12,11 +12,17 @@ import com.cloud.disk.service.api.IFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -148,6 +154,65 @@ public class FileController {
         Long userId = UserContext.getCurrentUserId();
         Long space = fileService.getUsedSpace(userId);
         return Result.success(space);
+    }
+
+    @Operation(summary = "流式输出文件", description = "根据文件 ID 将文件内容以流方式输出，用于图片/视频/音频在线预览，自动设置 Content-Type")
+    @CheckFileOwner
+    @GetMapping("/stream/{fileId}")
+    public void stream(
+            @Parameter(description = "文件 ID") @PathVariable Long fileId,
+            HttpServletResponse response) throws IOException {
+        FileInfo fileInfo = fileService.getById(fileId);
+        if (fileInfo == null || fileInfo.getIsFolder() == 1) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "文件不存在");
+            return;
+        }
+
+        Path filePath = Paths.get(fileInfo.getFilePath());
+        if (!Files.exists(filePath)) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "文件在磁盘上不存在");
+            return;
+        }
+
+        // 根据扩展名设置 Content-Type
+        String contentType = getContentType(fileInfo.getFileType());
+        response.setContentType(contentType);
+        response.setContentLengthLong(fileInfo.getFileSize());
+        response.setHeader("Content-Disposition", "inline; filename=\"" + fileInfo.getFileName() + "\"");
+
+        try (OutputStream out = response.getOutputStream()) {
+            Files.copy(filePath, out);
+        }
+    }
+
+    /**
+     * 根据文件扩展名返回 MIME 类型
+     */
+    private String getContentType(String ext) {
+        if (ext == null) return "application/octet-stream";
+        return switch (ext.toLowerCase()) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "svg" -> "image/svg+xml";
+            case "bmp" -> "image/bmp";
+            case "ico" -> "image/x-icon";
+            case "mp4" -> "video/mp4";
+            case "webm" -> "video/webm";
+            case "mp3" -> "audio/mpeg";
+            case "wav" -> "audio/wav";
+            case "ogg" -> "audio/ogg";
+            case "pdf" -> "application/pdf";
+            case "txt" -> "text/plain";
+            case "html", "htm" -> "text/html";
+            case "css" -> "text/css";
+            case "js" -> "application/javascript";
+            case "json" -> "application/json";
+            case "xml" -> "application/xml";
+            case "zip" -> "application/zip";
+            default -> "application/octet-stream";
+        };
     }
 
     // ==================== 文件上传（本地存储版） ====================
