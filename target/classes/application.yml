@@ -64,6 +64,30 @@ jackson:
   serialization:
     write-dates-as-timestamps: false
 
+# SpringDoc（Knife4j）Configuration
+springdoc:
+  swagger-ui:
+    path: /doc.html                # Knife4j UI 访问路径
+    tags-sorter: alpha             # 按字母排序标签
+    operations-sorter: alpha       # 按字母排序接口
+  api-docs:
+    path: /v3/api-docs             # OpenAPI JSON 路径
+  group-configs:
+    - group: default
+      paths-to-match: /api/**
+      packages-to-scan: com.cloud.disk.controller
+
+# Sa-Token Configuration
+sa-token:
+  token-name: cloud_disk_token        # Token name (matches frontend localStorage key)
+  timeout: 2592000                     # Token timeout: 30 days (seconds)
+  active-timeout: -1                   # No active timeout
+  is-concurrent: true                  # Allow concurrent login
+  is-share: true                       # Share token across devices
+  token-style: uuid                    # UUID-style token
+  is-log: false                        # Disable Sa-Token internal logging
+  is-print: false                      # Disable Sa-Token console prints
+
 # Logging Configuration
 logging:
   level:

@@ -8,6 +8,12 @@ const routes = [
     meta: { title: 'Login', noLayout: true }
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/Register.vue'),
+    meta: { title: 'Register', noLayout: true }
+  },
+  {
     path: '/',
     component: () => import('@/layout/MainLayout.vue'),
     redirect: '/home',
@@ -66,7 +72,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title ? to.meta.title + ' - Cloud Disk' : 'Cloud Disk'
   const token = localStorage.getItem('token')
-  if (to.path !== '/login' && !token) {
+  if (to.path !== '/login' && to.path !== '/register' && !token) {
     next('/login')
   } else {
     next()

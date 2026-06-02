@@ -1,9 +1,20 @@
 package com.cloud.disk.controller;
 
-import com.cloud.disk.service.api.IUserService;
+import cn.dev33.satoken.stp.SaTokenInfo;
+import cn.dev33.satoken.stp.StpUtil;
+import com.cloud.disk.common.dto.LoginDto;
+import com.cloud.disk.common.dto.RegisterDto;
+import com.cloud.disk.common.dto.UserDto;
+import com.cloud.disk.common.exception.BusinessException;
+import com.cloud.disk.common.result.Result;
 import com.cloud.disk.repository.entity.User;
+import com.cloud.disk.service.api.IUserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -12,32 +23,65 @@ public class AuthController {
     @Autowired
     private IUserService userService;
 
+    /**
+     * 用户注册
+     */
     @PostMapping("/register")
-    public String register(@RequestParam String username,
-                           @RequestParam String password,
-                           @RequestParam String nickname,
-                           @RequestParam(required = false) String email) {
-        boolean ok = userService.register(username, password, nickname, email);
-        return ok ? "OK" : "USERNAME_EXISTS";
+    public Result<Void> register(@Valid @RequestBody RegisterDto dto) {
+        boolean ok = userService.register(dto.getUsername(), dto.getPassword(),
+                dto.getNickname(), dto.getEmail());
+        if (!ok) {
+            throw new BusinessException("用户名已存在");
+        }
+        return Result.success(null);
     }
 
+    /**
+     * 用户登录
+     */
     @PostMapping("/login")
-    public User login(@RequestParam String username, @RequestParam String password) {
-        return userService.login(username, password);
+    public Result<Map<String, Object>> login(@Valid @RequestBody LoginDto dto) {
+        User user = userService.login(dto.getUsername(), dto.getPassword());
+
+        // 获取 Sa-Token 信息
+        SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("token", tokenInfo.getTokenValue());
+        result.put("user", UserDto.from(user));
+        return Result.success(result);
     }
 
-    @PostMapping("/changePassword")
-    public String changePassword(@RequestParam Long userId,
-                                 @RequestParam String oldPassword,
-                                 @RequestParam String newPassword) {
-        boolean ok = userService.changePassword(userId, oldPassword, newPassword);
-        return ok ? "OK" : "FAILED";
+    /**
+     * 用户登出
+     */
+    @PostMapping("/logout")
+    public Result<Void> logout() {
+        StpUtil.logout();
+        return Result.success(null);
     }
 
+    /**
+     * 获取当前登录用户信息
+     */
     @GetMapping("/userInfo")
-    public User getUserInfo(@RequestParam Long userId) {
+    public Result<UserDto> getUserInfo() {
+        long userId = StpUtil.getLoginIdAsLong();
         User user = userService.getById(userId);
-        if (user != null) user.setPassword(null);
-        return user;
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        return Result.success(UserDto.from(user));
+    }
+
+    /**
+     * 修改密码
+     */
+    @PostMapping("/changePassword")
+    public Result<Void> changePassword(@RequestParam Long userId,
+                                       @RequestParam String oldPassword,
+                                       @RequestParam String newPassword) {
+        userService.changePassword(userId, oldPassword, newPassword);
+        return Result.success(null);
     }
 }

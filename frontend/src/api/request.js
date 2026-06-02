@@ -10,7 +10,8 @@ service.interceptors.request.use(
   config => {
     const token = localStorage.getItem('token')
     if (token) {
-      config.headers['Authorization'] = 'Bearer ' + token
+      // Sa-Token 配置的 token-name 为 cloud_disk_token
+      config.headers['cloud_disk_token'] = token
     }
     return config
   },

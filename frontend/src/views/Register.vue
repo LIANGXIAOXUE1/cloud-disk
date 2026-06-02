@@ -1,39 +1,54 @@
 <template>
-  <div class="login-page">
+  <div class="register-page">
     <!-- Decorative background blobs -->
     <div class="bg-blob bg-blob-1"></div>
     <div class="bg-blob bg-blob-2"></div>
     <div class="bg-blob bg-blob-3"></div>
 
-    <div class="login-card">
+    <div class="register-card">
       <!-- Logo -->
-      <div class="login-logo">
+      <div class="register-logo">
         <CloudLogo />
       </div>
 
-      <p class="login-subtitle">私人聚合云盘</p>
+      <p class="register-subtitle">创建你的云盘账号</p>
 
       <!-- Form -->
-      <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin" class="login-form">
+      <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleRegister" class="register-form">
         <el-form-item prop="username">
           <el-input
             v-model="form.username"
             placeholder="请输入用户名"
             :prefix-icon="User"
             size="large"
-            class="login-input"
           />
         </el-form-item>
         <el-form-item prop="password">
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="请输入密码"
+            placeholder="请输入密码（6-32位）"
             :prefix-icon="Lock"
             size="large"
             show-password
-            class="login-input"
-            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+        <el-form-item prop="confirmPassword">
+          <el-input
+            v-model="form.confirmPassword"
+            type="password"
+            placeholder="请再次输入密码"
+            :prefix-icon="Lock"
+            size="large"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item prop="nickname">
+          <el-input
+            v-model="form.nickname"
+            placeholder="请输入昵称（选填）"
+            :prefix-icon="UserFilled"
+            size="large"
           />
         </el-form-item>
         <el-form-item>
@@ -42,15 +57,15 @@
             size="large"
             :loading="loading"
             native-type="submit"
-            class="login-btn"
+            class="register-btn"
           >
-            {{ loading ? '登录中…' : '登 录' }}
+            {{ loading ? '注册中…' : '注 册' }}
           </el-button>
         </el-form-item>
       </el-form>
 
-      <p class="login-footer">
-        还没有账号？<a href="#" @click.prevent="handleRegister">立即注册</a>
+      <p class="register-footer">
+        已有账号？<a href="#" @click.prevent="goLogin">立即登录</a>
       </p>
     </div>
   </div>
@@ -60,8 +75,8 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
-import { login } from '@/api/modules/auth'
+import { User, Lock, UserFilled } from '@element-plus/icons-vue'
+import { register } from '@/api/modules/auth'
 import CloudLogo from '@/components/CloudLogo.vue'
 
 const router = useRouter()
@@ -70,44 +85,67 @@ const loading = ref(false)
 
 const form = reactive({
   username: '',
-  password: ''
+  password: '',
+  confirmPassword: '',
+  nickname: ''
 })
 
-const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+/**
+ * 自定义校验：两次密码一致
+ */
+const validateConfirmPassword = (rule, value, callback) => {
+  if (value !== form.password) {
+    callback(new Error('两次输入的密码不一致'))
+  } else {
+    callback()
+  }
 }
 
-async function handleLogin() {
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 2, max: 20, message: '用户名长度需在2-20位之间', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 32, message: '密码长度需在6-32位之间', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入密码', trigger: 'blur' },
+    { validator: validateConfirmPassword, trigger: 'blur' }
+  ]
+}
+
+async function handleRegister() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
   loading.value = true
   try {
-    const res = await login({ username: form.username, password: form.password })
-    if (res.code === 200) {
-      // 存入后端返回的真实 Token（Sa-Token 生成的 UUID）
-      localStorage.setItem('token', res.data.token)
-      ElMessage.success('登录成功')
-      router.push('/home')
-    }
+    await register({
+      username: form.username,
+      password: form.password,
+      nickname: form.nickname || form.username
+    })
+    ElMessage.success('注册成功，请登录')
+    router.push('/login')
   } catch (e) {
-    ElMessage.error('用户名或密码错误')
+    // 错误信息由 Axios 响应拦截器统一处理
   } finally {
     loading.value = false
   }
 }
 
-function handleRegister() {
-  router.push('/register')
+function goLogin() {
+  router.push('/login')
 }
 </script>
 
 <style scoped>
 /* ============================================================
-   Login Page — Bright Morandi Style
+   Register Page — Bright Morandi Style
    ============================================================ */
-.login-page {
+.register-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -150,10 +188,10 @@ function handleRegister() {
 }
 
 /* Card */
-.login-card {
+.register-card {
   width: 420px;
   max-width: 100%;
-  padding: var(--space-12) var(--space-10);
+  padding: var(--space-10) var(--space-10);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -171,40 +209,37 @@ function handleRegister() {
 }
 
 /* Logo area */
-.login-logo {
+.register-logo {
   display: flex;
   justify-content: center;
   margin-bottom: var(--space-3);
 }
-.login-logo :deep(.logo-svg) {
+.register-logo :deep(.logo-svg) {
   width: 56px;
   height: 56px;
 }
-.login-logo :deep(.logo-text) {
-  font-size: var(--fs-3xl);
-}
 
-.login-subtitle {
+.register-subtitle {
   text-align: center;
   font-size: var(--fs-sm);
   color: var(--neutral-400);
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-6);
   letter-spacing: 0.06em;
 }
 
 /* Form */
-.login-form {
+.register-form {
   margin-top: var(--space-2);
 }
-.login-form .el-form-item {
-  margin-bottom: var(--space-5);
+.register-form .el-form-item {
+  margin-bottom: var(--space-4);
 }
-.login-form .el-form-item:last-of-type {
+.register-form .el-form-item:last-of-type {
   margin-bottom: 0;
   margin-top: var(--space-2);
 }
 
-.login-input :deep(.el-input__wrapper) {
+.register-form :deep(.el-input__wrapper) {
   padding: 4px 16px;
   height: 46px;
   background: var(--neutral-50) !important;
@@ -212,7 +247,7 @@ function handleRegister() {
 }
 
 /* Button */
-.login-btn {
+.register-btn {
   width: 100%;
   height: 48px;
   font-size: var(--fs-base);
@@ -223,25 +258,25 @@ function handleRegister() {
 }
 
 /* Footer */
-.login-footer {
+.register-footer {
   text-align: center;
   font-size: var(--fs-sm);
   color: var(--neutral-400);
   margin-top: var(--space-6);
 }
-.login-footer a {
+.register-footer a {
   color: var(--primary-500);
   cursor: pointer;
   font-weight: 600;
   transition: color var(--duration-fast);
 }
-.login-footer a:hover {
+.register-footer a:hover {
   color: var(--primary-600);
 }
 
 /* Responsive */
 @media (max-width: 480px) {
-  .login-card {
+  .register-card {
     padding: var(--space-8) var(--space-6);
   }
 }
