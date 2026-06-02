@@ -133,12 +133,15 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
         f.setUpdatedAt(LocalDateTime.now());
         this.updateById(f);
 
-        // 写入 recycle_bin 表
+        // 写入 recycle_bin 表（必须设置 file_path/storage_type，表有 NOT NULL 约束）
         RecycleBin rb = new RecycleBin();
         rb.setUserId(f.getUserId());
         rb.setFileId(f.getId());
         rb.setFileName(f.getFileName());
+        rb.setFilePath(f.getFilePath());
         rb.setFileSize(f.getFileSize());
+        rb.setFileType(f.getFileType());
+        rb.setStorageType(f.getStorageType());
         rb.setIsFolder(f.getIsFolder());
         rb.setDeletedAt(LocalDateTime.now());
         rb.setCreatedAt(LocalDateTime.now());
