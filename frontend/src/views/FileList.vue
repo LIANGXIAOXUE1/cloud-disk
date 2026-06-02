@@ -105,6 +105,9 @@
 
     <!-- Office Viewer -->
     <OfficeViewer v-model="officeVisible" :file="officeFile" />
+
+    <!-- Video Player -->
+    <VideoPlayer v-model="videoVisible" :file="videoFile" />
   </div>
 </template>
 
@@ -122,6 +125,7 @@ import ImageViewer from '@/components/ImageViewer.vue'
 import PdfViewer from '@/components/PdfViewer.vue'
 import CodeViewer from '@/components/CodeViewer.vue'
 import OfficeViewer from '@/components/OfficeViewer.vue'
+import VideoPlayer from '@/components/VideoPlayer.vue'
 
 const userId = 1
 
@@ -157,6 +161,10 @@ const codeFile = ref(null)
 // Office 文档预览
 const officeVisible = ref(false)
 const officeFile = ref(null)
+
+// 视频播放
+const videoVisible = ref(false)
+const videoFile = ref(null)
 
 onMounted(() => loadFiles())
 
@@ -221,6 +229,9 @@ function handleRowClick(row) {
   } else if (isOfficeFile(row)) {
     officeFile.value = row
     officeVisible.value = true
+  } else if (isVideoFile(row)) {
+    videoFile.value = row
+    videoVisible.value = true
   }
 }
 
@@ -312,6 +323,11 @@ function isTextFile(row) {
 function isOfficeFile(row) {
   const officeExts = ['docx', 'doc', 'xlsx', 'xls']
   return !row.isFolder && officeExts.includes((row.fileType || '').toLowerCase())
+}
+
+function isVideoFile(row) {
+  const videoExts = ['mp4', 'webm', 'ogg', 'ogv', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm4v']
+  return !row.isFolder && videoExts.includes((row.fileType || '').toLowerCase())
 }
 
 function getFileIcon(row) {
