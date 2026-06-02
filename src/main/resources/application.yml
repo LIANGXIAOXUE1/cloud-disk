@@ -43,6 +43,12 @@ spring:
         acknowledge-mode: manual
         prefetch: 10
 
+  # 文件上传大小限制（匹配前端分片阈值）
+  servlet:
+    multipart:
+      max-file-size: 2GB
+      max-request-size: 2GB
+
 # MyBatis Plus Configuration
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
@@ -87,6 +93,11 @@ sa-token:
   token-style: uuid                    # UUID-style token
   is-log: false                        # Disable Sa-Token internal logging
   is-print: false                      # Disable Sa-Token console prints
+
+# 本地存储配置（本地磁盘存储版）
+cloud-disk:
+  storage:
+    root-path: D:\cloud-disk-files
 
 # Logging Configuration
 logging:

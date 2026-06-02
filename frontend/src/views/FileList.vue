@@ -7,7 +7,9 @@
       accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.7z,.tar,.gz"
       accept-hint="支持图片、视频、文档、压缩包等全格式文件"
       class="upload-section"
+      :parent-id="currentParentId"
       @upload-complete="onUploadComplete"
+      @upload-error="onUploadError"
     />
 
     <!-- Toolbar -->
@@ -16,7 +18,7 @@
         <el-button type="primary" :icon="FolderAdd" @click="showCreateDialog = true">新建文件夹</el-button>
       </div>
       <div class="toolbar-right">
-        <el-input v-model="searchQuery" placeholder="搜索文件…" :prefix-icon="Search" style="width: 260px" clearable @input="handleSearch" />
+        <el-input v-model="searchQuery" placeholder="搜索文件…" :prefix-icon="Search" style="width: 260px" clearable />
       </div>
     </div>
 
@@ -95,13 +97,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   FolderAdd, Search, FolderOpened, Document, HomeFilled,
   PictureFilled, VideoCameraFilled, Files, Memo
 } from '@element-plus/icons-vue'
-import { getFileList, createFolder, renameFile, deleteFile } from '@/api/modules/file'
+import { getFileList, searchFiles, createFolder, renameFile, deleteFile } from '@/api/modules/file'
 import { createShare } from '@/api/modules/share'
 import UploadZone from '@/components/UploadZone.vue'
 
@@ -110,7 +112,8 @@ const userId = 1
 const fileList = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
-const breadcrumb = ref([])
+const breadcrumb = ref([])       // 面包屑文件夹名列表
+const breadcrumbIds = ref([])   // 对应文件夹 ID 列表（与 breadcrumb 同步）
 const currentParentId = ref(null)
 
 const showCreateDialog = ref(false)
@@ -127,8 +130,16 @@ onMounted(() => loadFiles())
 async function loadFiles() {
   loading.value = true
   try {
-    const res = await getFileList(userId, currentParentId.value)
-    fileList.value = res.data?.list || []
+    const keyword = searchQuery.value?.trim()
+    if (keyword) {
+      // 后端 Result<List<FileInfo>> → 拦截器返回完整 Result → res.data 即数组
+      const res = await searchFiles(userId, keyword)
+      fileList.value = res.data || []
+    } else {
+      // 后端 Result<PageResult<FileInfo>> → 拦截器返回完整 Result → res.data.list
+      const res = await getFileList(userId, currentParentId.value)
+      fileList.value = res.data?.list || []
+    }
   } catch (e) {
     fileList.value = []
   } finally {
@@ -137,8 +148,12 @@ async function loadFiles() {
 }
 
 function onUploadComplete() {
-  ElMessage.success('文件上传完成，正在刷新列表…')
-  setTimeout(() => loadFiles(), 500)
+  ElMessage.success('文件上传完成')
+  loadFiles()
+}
+
+function onUploadError({ file }) {
+  ElMessage.error(`「${file?.name || '未知文件'}」上传失败`)
 }
 
 async function handleCreateFolder() {
@@ -157,6 +172,7 @@ async function handleCreateFolder() {
 function handleRowClick(row) {
   if (row.isFolder) {
     breadcrumb.value.push(row.fileName)
+    breadcrumbIds.value.push(row.id)
     currentParentId.value = row.id
     loadFiles()
   }
@@ -164,13 +180,15 @@ function handleRowClick(row) {
 
 function goToRoot() {
   breadcrumb.value = []
+  breadcrumbIds.value = []
   currentParentId.value = null
   loadFiles()
 }
 
 function goToPath(idx) {
   breadcrumb.value = breadcrumb.value.slice(0, idx + 1)
-  currentParentId.value = null
+  breadcrumbIds.value = breadcrumbIds.value.slice(0, idx + 1)
+  currentParentId.value = breadcrumbIds.value.length > 0 ? breadcrumbIds.value[breadcrumbIds.value.length - 1] : null
   loadFiles()
 }
 
@@ -221,10 +239,13 @@ async function handleDelete(row) {
   } catch (e) { /* cancelled */ }
 }
 
-function handleSearch() {
-  loadFiles()
-}
+let searchTimer = null
+watch(searchQuery, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => loadFiles(), 300)
+})
 
+// ====== Helpers ======
 function getFileIcon(row) {
   if (row.isFolder) return FolderOpened
   const name = (row.fileName || '').toLowerCase()
@@ -376,3 +397,4 @@ function formatSize(bytes) {
   }
 }
 </style>
+

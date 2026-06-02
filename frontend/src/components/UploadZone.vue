@@ -54,7 +54,10 @@
             />
           </div>
           <span class="task-status-text">
-            <template v-if="task.status === 'uploading'">{{ task.percent.toFixed(0) }}% — {{ formatSize(task.uploaded) }} / {{ formatSize(task.file.size) }}</template>
+            <template v-if="task.status === 'uploading'">
+              <template v-if="task.isChunked">分片 {{ task.chunkIndex + 1 }}/{{ task.totalChunks }} — {{ task.percent.toFixed(0) }}%</template>
+              <template v-else>{{ task.percent.toFixed(0) }}% — {{ formatSize(task.uploaded) }} / {{ formatSize(task.file.size) }}</template>
+            </template>
             <template v-else-if="task.status === 'paused'">已暂停</template>
             <template v-else-if="task.status === 'completed'">上传完成</template>
             <template v-else-if="task.status === 'error'">{{ task.error || '上传失败' }}</template>
@@ -89,6 +92,15 @@
             title="开始上传"
           />
           <el-button
+            v-if="task.status === 'error'"
+            size="small"
+            circle
+            type="primary"
+            :icon="VideoPlay"
+            @click.stop="retryTask(idx)"
+            title="重试"
+          />
+          <el-button
             size="small"
             circle
             type="danger"
@@ -110,25 +122,37 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick } from 'vue'
-import { VideoPause, VideoPlay, Check, Close, PictureFilled, VideoCameraFilled, Document, Files } from '@element-plus/icons-vue'
+import { ref, reactive, computed } from 'vue'
+import {
+  VideoPause, VideoPlay, Check, Close,
+  PictureFilled, VideoCameraFilled, Document, Files
+} from '@element-plus/icons-vue'
+import {
+  uploadFile as apiUploadFile,
+  initChunkUpload,
+  uploadChunk as apiUploadChunk,
+  getChunkProgress,
+  mergeChunks
+} from '@/api/modules/file'
 
 const props = defineProps({
   accept: { type: String, default: '' },
   acceptHint: { type: String, default: '' },
   multiple: { type: Boolean, default: true },
   disabled: { type: Boolean, default: false },
-  autoUpload: { type: Boolean, default: false }
+  autoUpload: { type: Boolean, default: false },
+  parentId: { type: [Number, String], default: null }
 })
 
 const emit = defineEmits(['upload-start', 'upload-progress', 'upload-complete', 'upload-error', 'upload-cancel'])
 
+// 分片大小 5MB，大于 100MB 自动切片
+const CHUNK_SIZE = 5 * 1024 * 1024
+const DIRECT_THRESHOLD = 100 * 1024 * 1024
+
 const fileInput = ref(null)
 const isDragOver = ref(false)
 const queue = reactive([])
-
-// Simulated upload — replace with real API calls
-const uploadSimulators = reactive({})
 
 const hasPending = computed(() => queue.some(t => t.status === 'pending'))
 const hasUploading = computed(() => queue.some(t => t.status === 'uploading'))
@@ -162,6 +186,9 @@ function onFileSelect(e) {
 
 function addFiles(files) {
   for (const file of files) {
+    const isChunked = file.size >= DIRECT_THRESHOLD
+    const totalChunks = isChunked ? Math.ceil(file.size / CHUNK_SIZE) : 0
+
     const task = reactive({
       file,
       status: props.autoUpload ? 'uploading' : 'pending',
@@ -169,10 +196,13 @@ function addFiles(files) {
       uploaded: 0,
       error: '',
       previewUrl: '',
-      abortController: null
+      abortController: null,
+      isChunked,
+      totalChunks,
+      chunkIndex: 0,
+      uploadId: ''
     })
 
-    // Generate preview for images
     if (file.type.startsWith('image/')) {
       const reader = new FileReader()
       reader.onload = (e) => { task.previewUrl = e.target.result }
@@ -183,31 +213,47 @@ function addFiles(files) {
     emit('upload-start', { file, task })
 
     if (props.autoUpload) {
-      startSimulate(queue.length - 1)
+      startUpload(queue.length - 1)
     }
   }
 }
 
+// ========== Upload Control ==========
+
 function startTask(idx) {
   const task = queue[idx]
-  if (!task || task.status === 'uploading') return
+  if (!task || task.status === 'uploading' || task.status === 'completed') return
   task.status = 'uploading'
   task.error = ''
-  startSimulate(idx)
+  task.percent = 0
+  task.uploaded = 0
+  task.chunkIndex = 0
+  startUpload(idx)
+}
+
+function retryTask(idx) {
+  const task = queue[idx]
+  if (!task) return
+  task.status = 'uploading'
+  task.error = ''
+  task.percent = 0
+  task.uploaded = 0
+  task.chunkIndex = 0
+  task.uploadId = ''
+  startUpload(idx)
 }
 
 function startAll() {
   queue.forEach((t, i) => {
-    if (t.status === 'pending') startTask(i)
+    if (t.status === 'pending' || t.status === 'error') startTask(i)
   })
 }
 
 function pauseTask(idx) {
   const task = queue[idx]
-  if (!task) return
+  if (!task || task.status !== 'uploading') return
   task.status = 'paused'
   task.abortController?.abort()
-  delete uploadSimulators[idx]
 }
 
 function pauseAll() {
@@ -216,18 +262,17 @@ function pauseAll() {
   })
 }
 
-function resumeTask(idx) {
+async function resumeTask(idx) {
   const task = queue[idx]
-  if (!task) return
+  if (!task || task.status !== 'paused') return
   task.status = 'uploading'
   task.error = ''
-  startSimulate(idx)
+  startUpload(idx)
 }
 
 function removeTask(idx) {
   const task = queue[idx]
-  if (task?.abortController) task.abortController.abort()
-  delete uploadSimulators[idx]
+  task?.abortController?.abort()
   emit('upload-cancel', { file: task?.file, idx })
   queue.splice(idx, 1)
 }
@@ -240,36 +285,130 @@ function clearCompleted() {
   }
 }
 
-function startSimulate(idx) {
+// ========== Real Upload Logic ==========
+
+function startUpload(idx) {
   const task = queue[idx]
   if (!task) return
-  task.abortController = new AbortController()
-  const signal = task.abortController.signal
 
-  let current = task.uploaded || 0
-  const total = task.file.size
-  const chunk = Math.max(1024 * 256, total / 40)
+  if (task.file.size < DIRECT_THRESHOLD) {
+    doDirectUpload(idx)
+  } else {
+    doChunkUpload(idx)
+  }
+}
 
-  const step = () => {
-    if (signal.aborted || task.status === 'paused') return
-    current += chunk
-    if (current >= total) {
-      current = total
-      task.uploaded = total
-      task.percent = 100
-      task.status = 'completed'
-      delete uploadSimulators[idx]
-      emit('upload-complete', { file: task.file, idx, task })
+/** 小文件直接上传，通过 axios onUploadProgress 获取进度 */
+async function doDirectUpload(idx) {
+  const task = queue[idx]
+  const controller = new AbortController()
+  task.abortController = controller
+
+  try {
+    task.percent = 0
+    task.uploaded = 0
+
+    await apiUploadFile(
+      task.file,
+      props.parentId,
+      (e) => {
+        if (task.status !== 'uploading') return
+        task.uploaded = e.loaded
+        task.percent = Math.round((e.loaded / (e.total || task.file.size)) * 100)
+        emit('upload-progress', { file: task.file, idx, task, percent: task.percent, uploaded: e.loaded })
+      },
+      controller.signal
+    )
+
+    task.percent = 100
+    task.uploaded = task.file.size
+    task.status = 'completed'
+    task.abortController = null
+    emit('upload-complete', { file: task.file, idx, task })
+  } catch (e) {
+    if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') {
+      // paused, do nothing
       return
     }
-    task.uploaded = current
-    task.percent = Math.round((current / total) * 100)
-    emit('upload-progress', { file: task.file, idx, task, percent: task.percent, uploaded: current })
-    uploadSimulators[idx] = setTimeout(step, 80 + Math.random() * 100)
+    task.status = 'error'
+    task.error = e?.message || '上传失败'
+    task.abortController = null
+    emit('upload-error', { file: task.file, idx, task, error: e })
   }
-
-  uploadSimulators[idx] = setTimeout(step, 50)
 }
+
+/** 大文件分片上传 */
+async function doChunkUpload(idx) {
+  const task = queue[idx]
+  const controller = new AbortController()
+  task.abortController = controller
+
+  try {
+    // 1. Init — 如果已有 uploadId 则复用（断点续传）
+    if (!task.uploadId || task.totalChunks === 0) {
+      task.totalChunks = Math.ceil(task.file.size / CHUNK_SIZE)
+      const initRes = await initChunkUpload(
+        task.file.name,
+        task.file.size,
+        task.totalChunks,
+        props.parentId
+      )
+      task.uploadId = initRes.data.uploadId
+    }
+
+    // 2. 查询已上传分片（断点续传）
+    let completedChunks = []
+    try {
+      const progressRes = await getChunkProgress(task.uploadId)
+      completedChunks = progressRes.data.completedChunks || []
+    } catch (_) { /* 首次上传或查询失败，从 0 开始 */ }
+
+    const completedSet = new Set(completedChunks)
+
+    // 3. 逐片上传
+    for (let i = 0; i < task.totalChunks; i++) {
+      if (task.status !== 'uploading') return
+
+      // 跳过已上传分片
+      if (completedSet.has(i)) {
+        task.chunkIndex = i
+        task.uploaded = Math.min((i + 1) * CHUNK_SIZE, task.file.size)
+        task.percent = Math.round(((i + 1) / task.totalChunks) * 100)
+        continue
+      }
+
+      const start = i * CHUNK_SIZE
+      const end = Math.min(start + CHUNK_SIZE, task.file.size)
+      const chunkBlob = task.file.slice(start, end)
+
+      await apiUploadChunk(task.uploadId, i, chunkBlob, controller.signal)
+
+      task.chunkIndex = i
+      task.uploaded = end
+      task.percent = Math.round(((i + 1) / task.totalChunks) * 100)
+      emit('upload-progress', { file: task.file, idx, task, percent: task.percent, uploaded: end, chunkIndex: i })
+    }
+
+    // 4. Merge
+    await mergeChunks(task.uploadId)
+
+    task.percent = 100
+    task.uploaded = task.file.size
+    task.status = 'completed'
+    task.abortController = null
+    emit('upload-complete', { file: task.file, idx, task })
+  } catch (e) {
+    if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') {
+      return
+    }
+    task.status = 'error'
+    task.error = e?.message || '分片上传失败'
+    task.abortController = null
+    emit('upload-error', { file: task.file, idx, task, error: e })
+  }
+}
+
+// ========== Helpers ==========
 
 function getFileIcon(file) {
   if (!file) return Document
@@ -473,3 +612,4 @@ function formatSize(bytes) {
   }
 }
 </style>
+
