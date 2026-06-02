@@ -108,6 +108,9 @@
 
     <!-- Video Player -->
     <VideoPlayer v-model="videoVisible" :file="videoFile" />
+
+    <!-- Audio Player -->
+    <AudioPlayer v-model="audioVisible" :file="audioFile" />
   </div>
 </template>
 
@@ -126,6 +129,7 @@ import PdfViewer from '@/components/PdfViewer.vue'
 import CodeViewer from '@/components/CodeViewer.vue'
 import OfficeViewer from '@/components/OfficeViewer.vue'
 import VideoPlayer from '@/components/VideoPlayer.vue'
+import AudioPlayer from '@/components/AudioPlayer.vue'
 
 const userId = 1
 
@@ -165,6 +169,10 @@ const officeFile = ref(null)
 // 视频播放
 const videoVisible = ref(false)
 const videoFile = ref(null)
+
+// 音频播放
+const audioVisible = ref(false)
+const audioFile = ref(null)
 
 onMounted(() => loadFiles())
 
@@ -232,6 +240,9 @@ function handleRowClick(row) {
   } else if (isVideoFile(row)) {
     videoFile.value = row
     videoVisible.value = true
+  } else if (isAudioFile(row)) {
+    audioFile.value = row
+    audioVisible.value = true
   }
 }
 
@@ -328,6 +339,11 @@ function isOfficeFile(row) {
 function isVideoFile(row) {
   const videoExts = ['mp4', 'webm', 'ogg', 'ogv', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm4v']
   return !row.isFolder && videoExts.includes((row.fileType || '').toLowerCase())
+}
+
+function isAudioFile(row) {
+  const audioExts = ['mp3', 'wav', 'ogg', 'oga', 'flac', 'aac', 'm4a', 'wma']
+  return !row.isFolder && audioExts.includes((row.fileType || '').toLowerCase())
 }
 
 function getFileIcon(row) {
