@@ -102,6 +102,9 @@
 
     <!-- Code Viewer -->
     <CodeViewer v-model="codeVisible" :file="codeFile" />
+
+    <!-- Office Viewer -->
+    <OfficeViewer v-model="officeVisible" :file="officeFile" />
   </div>
 </template>
 
@@ -118,6 +121,7 @@ import UploadZone from '@/components/UploadZone.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
 import PdfViewer from '@/components/PdfViewer.vue'
 import CodeViewer from '@/components/CodeViewer.vue'
+import OfficeViewer from '@/components/OfficeViewer.vue'
 
 const userId = 1
 
@@ -149,6 +153,10 @@ const pdfFile = ref(null)
 // 文本/代码预览
 const codeVisible = ref(false)
 const codeFile = ref(null)
+
+// Office 文档预览
+const officeVisible = ref(false)
+const officeFile = ref(null)
 
 onMounted(() => loadFiles())
 
@@ -210,6 +218,9 @@ function handleRowClick(row) {
   } else if (isTextFile(row)) {
     codeFile.value = row
     codeVisible.value = true
+  } else if (isOfficeFile(row)) {
+    officeFile.value = row
+    officeVisible.value = true
   }
 }
 
@@ -296,6 +307,11 @@ function isTextFile(row) {
     'sql', 'sh', 'bat', 'ps1', 'ini', 'cfg', 'log', 'c', 'cpp', 'cs',
     'go', 'rs', 'php', 'rb', 'swift', 'kt', 'vue', 'svelte']
   return !row.isFolder && textExts.includes((row.fileType || '').toLowerCase())
+}
+
+function isOfficeFile(row) {
+  const officeExts = ['docx', 'doc', 'xlsx', 'xls']
+  return !row.isFolder && officeExts.includes((row.fileType || '').toLowerCase())
 }
 
 function getFileIcon(row) {
