@@ -51,7 +51,7 @@
 <script setup>
 import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import hljs from 'highlight.js/lib/core'
-import 'highlight.js/styles/github-dark.css'
+import 'highlight.js/styles/github.css'
 
 // Register common languages — add more as needed
 import javascript from 'highlight.js/lib/languages/javascript'
@@ -228,7 +228,7 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 9997;
-  background: #1e1e1e;
+  background: #fff;
   display: flex;
   flex-direction: column;
   outline: none;
@@ -241,15 +241,15 @@ onUnmounted(() => {
   padding: 0 16px;
   height: 44px;
   min-height: 44px;
-  background: #252526;
-  border-bottom: 1px solid #333;
-  color: #ccc;
+  background: #f6f8fa;
+  border-bottom: 1px solid #e1e4e8;
+  color: #24292e;
   z-index: 2;
 }
 .code-name {
   font-size: 13px;
   font-weight: 500;
-  color: #e0e0e0;
+  color: #24292e;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -257,8 +257,8 @@ onUnmounted(() => {
 }
 .code-lang {
   font-size: 11px;
-  color: #569cd6;
-  background: rgba(86,156,214,0.1);
+  color: #0366d6;
+  background: rgba(3,102,214,0.08);
   padding: 1px 8px;
   border-radius: 3px;
   text-transform: uppercase;
@@ -266,7 +266,7 @@ onUnmounted(() => {
 }
 .code-info {
   font-size: 11px;
-  color: #666;
+  color: #6a737d;
   flex: 1;
 }
 .code-actions {
@@ -279,7 +279,7 @@ onUnmounted(() => {
   height: 28px;
   border: none;
   background: transparent;
-  color: rgba(255,255,255,0.6);
+  color: #586069;
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
@@ -289,8 +289,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
 }
-.code-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
-.code-btn-close:hover { background: rgba(255,80,80,0.3) !important; }
+.code-btn:hover { background: rgba(0,0,0,0.06); color: #24292e; }
+.code-btn-close:hover { background: rgba(255,80,80,0.15) !important; color: #d73a49; }
 
 .code-body {
   flex: 1;
@@ -314,10 +314,10 @@ onUnmounted(() => {
   min-width: 48px;
   padding: 0 12px 0 16px;
   text-align: right;
-  color: #858585;
+  color: #959da5;
   user-select: none;
   vertical-align: top;
-  border-right: 1px solid #333;
+  border-right: 1px solid #e1e4e8;
 }
 
 .code-line-content {
@@ -327,10 +327,10 @@ onUnmounted(() => {
 }
 
 .code-table tr:hover {
-  background: rgba(255,255,255,0.03);
+  background: rgba(0,0,0,0.03);
 }
 
-/* highlight.js dark theme overrides */
+/* highlight.js theme overrides */
 :deep(.hljs) {
   background: transparent;
   padding: 0;
@@ -341,10 +341,10 @@ onUnmounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: rgba(255,255,255,0.4);
+  color: #999;
   font-size: 15px;
 }
-.code-error { color: rgba(255,120,120,0.7); }
+.code-error { color: #d73a49; }
 
 /* transitions */
 .viewer-fade-enter-active, .viewer-fade-leave-active { transition: opacity 0.2s ease; }
