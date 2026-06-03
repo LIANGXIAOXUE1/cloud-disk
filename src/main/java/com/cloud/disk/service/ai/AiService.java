@@ -24,7 +24,6 @@ import java.util.zip.ZipFile;
 public class AiService {
 
     private static final Logger log = LoggerFactory.getLogger(AiService.class);
-    private static final String API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
     private static final String API_KEY = "sk-15431b4b0d4948f6a7f08ab002e3ec7f";
     private static final int MAX_CHARS = 5000;
 
@@ -124,45 +123,43 @@ public class AiService {
                   "model": "qwen-turbo",
                   "input": {
                     "messages": [
-                      {"role": "system", "content": "你是一个专业的文档分析助手，擅长总结和提取关键信息。请用中文回复。"},
+                      {"role": "system", "content": "You are a helpful assistant."},
                       {"role": "user", "content": "%s"}
                     ]
                   },
                   "parameters": {
-                    "max_tokens": 1000,
-                    "temperature": 0.5
+                    "max_tokens": 1000
                   }
                 }
                 """, escapeJson(prompt));
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
+                .uri(URI.create("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"))
                 .header("Authorization", "Bearer " + API_KEY)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        log.info("AI API status: {}, body length: {}", response.statusCode(), response.body().length());
+
         if (response.statusCode() != 200) {
-            log.error("AI API error: {}", response.body());
-            throw new RuntimeException("AI 服务返回错误: " + response.statusCode());
+            log.error("AI API error body: {}", response.body());
+            throw new RuntimeException("AI API error: " + response.statusCode());
         }
 
-        // Parse the response JSON to extract the text content
+        // Parse OpenAI-compatible response
         String respBody = response.body();
-        // Find "text": "..." in the nested JSON
-        int textIdx = respBody.indexOf("\"text\":\"");
-        if (textIdx < 0) {
-            log.error("Unexpected API response: {}", respBody);
-            throw new RuntimeException("AI 响应格式异常");
+        int contentIdx = respBody.indexOf("\"content\":\"");
+        if (contentIdx < 0) {
+            log.error("Response missing content: {}", respBody);
+            throw new RuntimeException("AI response format error");
         }
-        int start = respBody.indexOf('"', textIdx + 7) + 1;
+        int start = respBody.indexOf('"', contentIdx + 10) + 1;
         int end = respBody.indexOf('"', start);
         String text = respBody.substring(start, end)
-                .replace("\\n", "\n")
-                .replace("\\\"", "\"")
-                .replace("\\\\", "\\");
+                .replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
         return text;
     }
 

@@ -24,6 +24,13 @@ service.interceptors.response.use(
   response => {
     const data = response.data
     if (data.code !== 200) {
+      if (data.code === 401) {
+        ElMessage.error('登录已过期，请重新登录')
+        localStorage.removeItem('token')
+        localStorage.removeItem('username')
+        window.location.href = '/#/login'
+        return Promise.reject(new Error('Unauthorized'))
+      }
       ElMessage.error(data.message || 'Request failed')
       return Promise.reject(new Error(data.message || 'Request failed'))
     }
