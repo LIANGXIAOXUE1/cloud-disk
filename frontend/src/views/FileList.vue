@@ -16,13 +16,28 @@
     <div class="toolbar">
       <div class="toolbar-left">
         <el-button type="primary" :icon="FolderAdd" @click="showCreateDialog = true">新建文件夹</el-button>
+        <el-button v-if="isSearching" size="small" @click="clearSearch">← 返回</el-button>
       </div>
       <div class="toolbar-right">
-        <el-input v-model="searchQuery" placeholder="搜索文件…" :prefix-icon="Search" style="width: 260px" clearable />
+        <el-select v-model="searchType" placeholder="全部类型" size="default" style="width:110px" @change="doSearch">
+          <el-option label="全部" value="" />
+          <el-option label="图片" value="image" />
+          <el-option label="文档" value="doc" />
+          <el-option label="视频" value="video" />
+          <el-option label="音频" value="audio" />
+          <el-option label="其他" value="other" />
+        </el-select>
+        <el-input v-model="searchQuery" placeholder="搜索文件…" :prefix-icon="Search" style="width: 220px" clearable @clear="clearSearch" @keyup.enter="doSearch" />
       </div>
     </div>
 
+    <!-- Search results count -->
+    <div v-if="isSearching" class="search-info">
+      搜索"<strong>{{ searchQuery }}</strong>"，找到 {{ fileList.length }} 个结果
+    </div>
+
     <!-- Breadcrumb -->
+    <div v-if="!isSearching">
     <el-breadcrumb separator="/" class="breadcrumb">
       <el-breadcrumb-item @click="goToRoot">
         <el-icon :size="14"><HomeFilled /></el-icon>
@@ -30,6 +45,7 @@
       </el-breadcrumb-item>
       <el-breadcrumb-item v-for="(item, idx) in breadcrumb" :key="idx" @click="goToPath(idx)">{{ item }}</el-breadcrumb-item>
     </el-breadcrumb>
+    </div>
 
     <!-- File Table -->
     <el-card shadow="hover" class="file-card">
@@ -49,7 +65,7 @@
                 </el-icon>
               </div>
               <div class="file-name-info">
-                <span class="file-name-text">{{ row.fileName }}</span>
+                <span class="file-name-text" v-html="highlightName(row.fileName)"></span>
                 <span class="file-type-tag" v-if="!row.isFolder">{{ getFileExt(row) }}</span>
               </div>
             </div>
@@ -121,7 +137,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   FolderAdd, Search, FolderOpened, Document, HomeFilled,
@@ -142,7 +158,9 @@ const userId = 1
 const fileList = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
-const breadcrumb = ref([])       // 面包屑文件夹名列表
+const searchType = ref('')
+const isSearching = computed(() => !!searchQuery.value?.trim())
+const breadcrumb = ref([])
 const breadcrumbIds = ref([])   // 对应文件夹 ID 列表（与 breadcrumb 同步）
 const currentParentId = ref(null)
 
@@ -187,11 +205,14 @@ async function loadFiles() {
   try {
     const keyword = searchQuery.value?.trim()
     if (keyword) {
-      // 后端 Result<List<FileInfo>> → 拦截器返回完整 Result → res.data 即数组
       const res = await searchFiles(userId, keyword)
-      fileList.value = res.data || []
+      let list = res.data || []
+      // Apply type filter
+      if (searchType.value) {
+        list = list.filter(f => matchTypeFilter(f.fileType, searchType.value))
+      }
+      fileList.value = list
     } else {
-      // 后端 Result<PageResult<FileInfo>> → 拦截器返回完整 Result → res.data.list
       const res = await getFileList(userId, currentParentId.value)
       fileList.value = res.data?.list || []
     }
@@ -200,6 +221,39 @@ async function loadFiles() {
   } finally {
     loading.value = false
   }
+}
+
+function matchTypeFilter(ext, type) {
+  if (!ext) ext = ''
+  ext = ext.toLowerCase()
+  const groups = {
+    image: ['jpg','jpeg','png','gif','webp','svg','bmp','ico'],
+    doc: ['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','md','csv','json','xml'],
+    video: ['mp4','webm','ogg','ogv','mov','avi','mkv','flv','wmv','m4v'],
+    audio: ['mp3','wav','ogg','oga','flac','aac','m4a','wma']
+  }
+  const group = groups[type]
+  if (group) return group.includes(ext)
+  if (type === 'other') return !groups.image.includes(ext) && !groups.doc.includes(ext) && !groups.video.includes(ext) && !groups.audio.includes(ext)
+  return true
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  searchType.value = ''
+  loadFiles()
+}
+
+function doSearch() {
+  loadFiles()
+}
+
+function highlightName(name) {
+  const q = searchQuery.value?.trim()
+  if (!q || !name) return name
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escaped})`, 'gi')
+  return name.replace(regex, '<mark class="search-highlight">$1</mark>')
 }
 
 function onUploadComplete() {
@@ -314,9 +368,14 @@ async function handleDelete(row) {
 }
 
 let searchTimer = null
-watch(searchQuery, () => {
+watch(searchQuery, (val) => {
   clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => loadFiles(), 300)
+  if (!val?.trim()) {
+    searchTimer = setTimeout(() => {
+      searchType.value = ''
+      loadFiles()
+    }, 400)
+  }
 })
 
 // ====== Helpers ======
@@ -436,6 +495,20 @@ function formatSize(bytes) {
   cursor: pointer;
 }
 
+.search-info {
+  font-size: 13px;
+  color: var(--neutral-500);
+  margin-bottom: 12px;
+  padding: 2px 0;
+}
+
+:deep(.search-highlight) {
+  background: #fff3cd;
+  color: #856404;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
 .file-card {
   border: 1px solid var(--neutral-100);
 }
@@ -504,7 +577,13 @@ function formatSize(bytes) {
     flex-direction: column;
     align-items: stretch;
   }
+  .toolbar-right {
+    flex-wrap: wrap;
+  }
   .toolbar-right .el-input {
+    width: 100% !important;
+  }
+  .toolbar-right .el-select {
     width: 100% !important;
   }
 }
