@@ -11,6 +11,8 @@ import com.cloud.disk.repository.mapper.RecycleBinMapper;
 import com.cloud.disk.service.api.IFileService;
 import com.cloud.disk.service.storage.ILocalStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,6 +45,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
     private ILocalStorageService localStorageService;
 
     @Override
+    @Cacheable(value = "fileList", key = "#userId + '_' + #parentId")
     public PageResult<FileInfo> listByParentId(Long userId, Long parentId, int page, int pageSize) {
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<FileInfo>()
                 .eq(FileInfo::getUserId, userId)
@@ -61,6 +64,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
     }
 
     @Override
+    @Cacheable(value = "fileSearch", key = "#userId + '_' + #fileName")
     public List<FileInfo> searchByName(Long userId, String fileName) {
         return this.list(new LambdaQueryWrapper<FileInfo>()
                 .eq(FileInfo::getUserId, userId)
@@ -70,6 +74,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
     }
 
     @Override
+    @CacheEvict(value = {"fileList", "fileSearch"}, allEntries = true)
     public boolean createFolder(Long userId, String folderName, Long parentId) {
         // 同名检查
         if (existsSameName(userId, parentId, folderName, null)) {
@@ -89,6 +94,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
     }
 
     @Override
+    @CacheEvict(value = {"fileList", "fileSearch"}, allEntries = true)
     public boolean rename(Long fileId, String newName) {
         FileInfo f = this.getById(fileId);
         if (f == null) return false;
@@ -139,6 +145,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"fileList", "fileSearch"}, allEntries = true)
     public boolean deleteToRecycle(Long fileId) {
         FileInfo f = this.getById(fileId);
         if (f == null) return false;
@@ -212,6 +219,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"fileList", "fileSearch"}, allEntries = true)
     public FileInfo uploadFile(Long userId, MultipartFile file, Long parentId) throws Exception {
         String originalName = file.getOriginalFilename();
         if (originalName == null || originalName.isEmpty()) {
@@ -382,7 +390,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
             return thumbPath;
         } catch (Exception e) {
             // 缩略图生成失败不影响正常流程
-            log.warn("缩略图生成失败: {}", originalPath, e);
+            log.warn("缩略图生成失败: " + originalPath);
             return null;
         }
     }
