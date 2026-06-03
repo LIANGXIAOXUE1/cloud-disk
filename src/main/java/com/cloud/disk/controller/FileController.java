@@ -215,6 +215,30 @@ public class FileController {
         };
     }
 
+    @Operation(summary = "获取缩略图", description = "根据文件 ID 返回缩略图，若无缩略图返回404")
+    @GetMapping("/thumb/{fileId}")
+    public void thumb(
+            @Parameter(description = "文件 ID") @PathVariable Long fileId,
+            HttpServletResponse response) throws IOException {
+        FileInfo fileInfo = fileService.getById(fileId);
+        if (fileInfo == null || fileInfo.getThumbPath() == null || fileInfo.getThumbPath().isEmpty()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "缩略图不存在");
+            return;
+        }
+
+        Path thumbFile = Paths.get(fileInfo.getThumbPath());
+        if (!Files.exists(thumbFile)) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "缩略图文件不存在");
+            return;
+        }
+
+        response.setContentType("image/jpeg");
+        response.setContentLengthLong(thumbFile.toFile().length());
+        try (OutputStream out = response.getOutputStream()) {
+            Files.copy(thumbFile, out);
+        }
+    }
+
     // ==================== 文件上传（本地存储版） ====================
 
     @Operation(summary = "普通小文件上传", description = "接收 multipart/form-data，将文件保存到本地磁盘并写入数据库")

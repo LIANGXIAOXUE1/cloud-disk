@@ -15,9 +15,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import javax.imageio.ImageIO;
 
 @Service
 public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> implements IFileService {
@@ -212,6 +226,12 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
         // 委托本地存储服务保存文件到磁盘
         String savedPath = localStorageService.saveFile(userId, file, originalName);
 
+        // 图片文件：生成缩略图
+        String thumbPath = null;
+        if (isImageFile(originalName)) {
+            thumbPath = generateThumbnail(savedPath);
+        }
+
         // 写入数据库
         FileInfo fileInfo = new FileInfo();
         fileInfo.setUserId(userId);
@@ -225,6 +245,7 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
         fileInfo.setFileStatus(1);
         fileInfo.setVersion(1);
         fileInfo.setDeleted(0);
+        fileInfo.setThumbPath(thumbPath);
         fileInfo.setCreatedAt(LocalDateTime.now());
         fileInfo.setUpdatedAt(LocalDateTime.now());
 
@@ -307,5 +328,62 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
             return "";
         }
         return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    /**
+     * 判断是否可生成缩略图的图片文件
+     */
+    private boolean isImageFile(String fileName) {
+        if (fileName == null) return false;
+        String ext = getFileExtension(fileName);
+        return List.of("jpg", "jpeg", "png", "gif", "bmp", "webp").contains(ext);
+    }
+
+    /**
+     * 为图片文件生成缩略图（最大 200x200），保存到原文件同目录。
+     * @return 缩略图路径，失败返回 null
+     */
+    private String generateThumbnail(String originalPath) {
+        try {
+            File original = new File(originalPath);
+            if (!original.exists()) return null;
+
+            BufferedImage img = ImageIO.read(original);
+            if (img == null) return null;
+
+            // 缩放到 200px 宽以内，保持比例
+            int thumbWidth = 200;
+            int thumbHeight = thumbWidth;
+            int w = img.getWidth();
+            int h = img.getHeight();
+            if (w > h) {
+                thumbHeight = (int) ((double) h / w * thumbWidth);
+            } else {
+                thumbWidth = (int) ((double) w / h * thumbHeight);
+            }
+            if (thumbWidth < 1) thumbWidth = 1;
+            if (thumbHeight < 1) thumbHeight = 1;
+
+            // 生成缩略图
+            Image scaled = img.getScaledInstance(thumbWidth, thumbHeight, Image.SCALE_SMOOTH);
+            BufferedImage thumb = new BufferedImage(thumbWidth, thumbHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = thumb.createGraphics();
+            g2d.drawImage(scaled, 0, 0, null);
+            g2d.dispose();
+
+            // 保存到原文件同目录，加 _thumb 后缀
+            String parent = original.getParent();
+            String name = original.getName();
+            int dot = name.lastIndexOf('.');
+            String stem = dot > 0 ? name.substring(0, dot) : name;
+            String thumbPath = parent + File.separator + stem + "_thumb.jpg";
+            ImageIO.write(thumb, "jpg", new File(thumbPath));
+
+            return thumbPath;
+        } catch (Exception e) {
+            // 缩略图生成失败不影响正常流程
+            log.warn("缩略图生成失败: {}", originalPath, e);
+            return null;
+        }
     }
 }

@@ -38,7 +38,13 @@
           <template #default="{ row }">
             <div class="file-name-cell">
               <div class="file-icon-box" :style="{ background: getFileIconBg(row) }">
-                <el-icon :size="22" :color="getFileIconColor(row)">
+                <img
+                  v-if="isImageFile(row)"
+                  :src="`/api/file/thumb/${row.id}`"
+                  class="file-thumb"
+                  @error="e => e.target.style.display='none'"
+                />
+                <el-icon v-show="!isImageFile(row)" :size="22" :color="getFileIconColor(row)">
                   <component :is="getFileIcon(row)" />
                 </el-icon>
               </div>
@@ -449,7 +455,13 @@ function formatSize(bytes) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
   transition: transform var(--duration-fast) var(--ease-smooth);
+}
+.file-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .el-table__row:hover .file-icon-box {
   transform: scale(1.08);
