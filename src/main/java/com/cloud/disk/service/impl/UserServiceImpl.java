@@ -7,6 +7,8 @@ import com.cloud.disk.common.exception.BusinessException;
 import com.cloud.disk.repository.entity.User;
 import com.cloud.disk.repository.mapper.UserMapper;
 import com.cloud.disk.service.api.IUserService;
+import com.cloud.disk.mq.producer.UserRegisterProducer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -17,6 +19,9 @@ import java.time.LocalDateTime;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     private static final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
+    @Autowired
+    private UserRegisterProducer registerProducer;
 
     @Override
     public User getByUsername(String username) {
@@ -38,7 +43,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         user.setStatus(1);
         user.setTotalSpace(10737418240L);  // 10GB
         user.setUsedSpace(0L);
-        return this.save(user);
+        boolean ok = this.save(user);
+        if (ok) {
+            registerProducer.sendRegisterNotification(username, user.getId());
+        }
+        return ok;
     }
 
     @Override
