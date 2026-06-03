@@ -78,10 +78,23 @@ public class AuthController {
      * 修改密码
      */
     @PostMapping("/changePassword")
-    public Result<Void> changePassword(@RequestParam Long userId,
-                                       @RequestParam String oldPassword,
-                                       @RequestParam String newPassword) {
-        userService.changePassword(userId, oldPassword, newPassword);
+    public Result<Void> changePassword(@RequestBody Map<String, String> body) {
+        long userId = StpUtil.getLoginIdAsLong();
+        userService.changePassword(userId, body.get("oldPassword"), body.get("newPassword"));
         return Result.success(null);
+    }
+
+    /**
+     * 更新个人信息（昵称/邮箱）
+     */
+    @PutMapping("/profile")
+    public Result<UserDto> updateProfile(@RequestBody Map<String, String> body) {
+        long userId = StpUtil.getLoginIdAsLong();
+        User user = userService.getById(userId);
+        if (user == null) throw new BusinessException("用户不存在");
+        if (body.containsKey("nickname")) user.setNickname(body.get("nickname"));
+        if (body.containsKey("email")) user.setEmail(body.get("email"));
+        userService.updateById(user);
+        return Result.success(UserDto.from(user));
     }
 }
