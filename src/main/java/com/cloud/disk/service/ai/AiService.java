@@ -121,15 +121,11 @@ public class AiService {
         String body = String.format("""
                 {
                   "model": "qwen-turbo",
-                  "input": {
-                    "messages": [
-                      {"role": "system", "content": "You are a helpful assistant."},
-                      {"role": "user", "content": "%s"}
-                    ]
-                  },
-                  "parameters": {
-                    "max_tokens": 1000
-                  }
+                  "messages": [
+                    {"role": "system", "content": "You are a professional document analyst. Summarize key points in Chinese."},
+                    {"role": "user", "content": "%s"}
+                  ],
+                  "max_tokens": 1000
                 }
                 """, escapeJson(prompt));
 
