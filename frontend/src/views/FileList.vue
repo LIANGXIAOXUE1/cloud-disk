@@ -16,6 +16,10 @@
     <div class="toolbar">
       <div class="toolbar-left">
         <el-button type="primary" :icon="FolderAdd" @click="showCreateDialog = true">新建文件夹</el-button>
+        <template v-if="selectedRows.length > 0">
+          <span class="batch-count">已选 {{ selectedRows.length }} 项</span>
+          <el-button type="danger" size="small" @click="handleBatchDelete">批量删除</el-button>
+        </template>
         <el-button v-if="isSearching" size="small" @click="clearSearch">← 返回</el-button>
       </div>
       <div class="toolbar-right">
@@ -49,7 +53,8 @@
 
     <!-- File Table -->
     <el-card shadow="hover" class="file-card">
-      <el-table :data="fileList" style="width: 100%" stripe @row-dblclick="handleRowClick" v-loading="loading">
+      <el-table :data="fileList" style="width: 100%" stripe @row-dblclick="handleRowClick" v-loading="loading" @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="42" />
         <el-table-column label="文件名" min-width="280">
           <template #default="{ row }">
             <div class="file-name-cell">
@@ -172,6 +177,9 @@ const renameValue = ref('')
 const showShareDialog = ref(false)
 const shareTarget = ref(null)
 const sharePassword = ref('')
+
+// 批量操作
+const selectedRows = ref([])
 
 // 图片预览
 const viewerVisible = ref(false)
@@ -367,6 +375,28 @@ async function handleDelete(row) {
   } catch (e) { /* cancelled */ }
 }
 
+function onSelectionChange(rows) {
+  selectedRows.value = rows
+}
+
+async function handleBatchDelete() {
+  if (selectedRows.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${selectedRows.value.length} 个文件？删除后将移入回收站。`,
+      '批量删除', { type: 'warning' }
+    )
+    const ids = selectedRows.value.map(r => r.id)
+    await deleteFile(ids[0]) // fallback: delete one by one
+    for (let i = 1; i < ids.length; i++) {
+      await deleteFile(ids[i])
+    }
+    ElMessage.success(`已移入回收站 (${ids.length} 个文件)`)
+    selectedRows.value = []
+    loadFiles()
+  } catch (e) { /* cancelled */ }
+}
+
 let searchTimer = null
 watch(searchQuery, (val) => {
   clearTimeout(searchTimer)
@@ -488,6 +518,13 @@ function formatSize(bytes) {
 .toolbar-left {
   display: flex;
   gap: var(--space-3);
+  align-items: center;
+}
+
+.batch-count {
+  font-size: 13px;
+  color: var(--neutral-500);
+  font-weight: 500;
 }
 
 .breadcrumb {
