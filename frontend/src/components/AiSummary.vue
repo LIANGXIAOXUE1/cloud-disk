@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" :title="props.mode === 'describe' ? 'AI 图片分析' : 'AI 摘要'" width="600px" destroy-on-close @close="cancel">
+  <el-dialog v-model="visible" :title="title" width="600px" destroy-on-close @close="cancel">
     <div v-if="loading" style="text-align:center;padding:40px 0">
       <el-icon class="is-loading" :size="32"><Loading /></el-icon>
       <p style="margin-top:12px;color:#999">AI 正在分析文档内容...</p>
@@ -29,6 +29,11 @@ const visible = computed({
   get: () => props.modelValue,
   set: v => emit('update:modelValue', v)
 })
+const title = computed(() => {
+  if (props.mode === 'describe') return 'AI 图片分析'
+  if (props.mode === 'videoNote') return 'AI 视频笔记'
+  return 'AI 摘要'
+})
 
 const loading = ref(true)
 const error = ref('')
@@ -41,7 +46,10 @@ watch(() => props.modelValue, async (val) => {
     error.value = ''
     summary.value = ''
     try {
-      const url = props.mode === 'describe' ? `/file/describe/${props.fileId}` : `/file/summary/${props.fileId}`
+      let url
+      if (props.mode === 'describe') url = `/file/describe/${props.fileId}`
+      else if (props.mode === 'videoNote') url = `/file/video-note/${props.fileId}`
+      else url = `/file/summary/${props.fileId}`
       const res = await request({ url, method: 'post' })
       summary.value = res.data || ''
       renderedMd.value = simpleMarkdown(res.data || '')

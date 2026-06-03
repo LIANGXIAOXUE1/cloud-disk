@@ -90,6 +90,7 @@
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
             <el-button v-if="isSummarizable(row)" link type="success" size="small" @click="openAiSummary(row)">AI 摘要</el-button>
             <el-button v-if="isImageFile(row)" link type="success" size="small" @click="openAiDescribe(row)">AI 描述</el-button>
+            <el-button v-if="isAudioFile(row) || isVideoFile(row)" link type="success" size="small" @click="openAiVideoNote(row)">AI 视频笔记</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -465,6 +466,12 @@ function openAiSummary(row) {
 
 function openAiDescribe(row) {
   aiMode.value = 'describe'
+  aiFileId.value = row.id
+  aiVisible.value = true
+}
+
+function openAiVideoNote(row) {
+  aiMode.value = 'videoNote'
   aiFileId.value = row.id
   aiVisible.value = true
 }

@@ -292,6 +292,22 @@ public class FileController {
         return Result.success(note);
     }
 
+    @Operation(summary = "AI 视频/音频笔记（语音转文字+总结）")
+    @PostMapping("/video-note/{fileId}")
+    public Result<String> videoNote(@Parameter(description = "文件 ID") @PathVariable Long fileId) {
+        FileInfo f = fileService.getById(fileId);
+        if (f == null || f.getIsFolder() == 1) {
+            return Result.error(404, "文件不存在");
+        }
+        try {
+            String note = aiService.analyzeMedia(f.getFilePath(), f.getFileType());
+            aiService.saveNote(f.getFilePath(), "# AI 视频笔记\n\n" + note);
+            return Result.success(note);
+        } catch (Exception e) {
+            return Result.error(500, "AI 分析失败: " + e.getMessage());
+        }
+    }
+
     // ==================== 文件上传（本地存储版） ====================
 
     @Operation(summary = "普通小文件上传", description = "接收 multipart/form-data，将文件保存到本地磁盘并写入数据库")

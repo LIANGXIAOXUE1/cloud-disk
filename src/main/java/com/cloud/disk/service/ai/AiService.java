@@ -223,6 +223,86 @@ public class AiService {
         return dot > 0 ? filePath.substring(0, dot) + ".note.md" : filePath + ".note.md";
     }
 
+    /**
+     * Analyze video/audio file — transcribe speech then summarize.
+     * For video files, attempts to extract audio via ffmpeg first.
+     * @return markdown summary with transcript
+     */
+    public String analyzeMedia(String filePath, String fileType) throws Exception {
+        String ext = fileType != null ? fileType.toLowerCase() : "";
+        File file = new File(filePath);
+        if (!file.exists()) return "文件不存在";
+
+        // Determine if it's video or audio
+        boolean isVideo = List.of("mp4", "webm", "mov", "avi", "mkv", "flv", "wmv").contains(ext);
+        boolean isAudio = List.of("mp3", "wav", "ogg", "oga", "flac", "aac", "m4a", "wma").contains(ext);
+
+        if (!isVideo && !isAudio) return "不支持的文件格式，请上传音频或视频文件。";
+
+        File audioFile = file;
+        boolean tempAudio = false;
+
+        // Extract audio from video using ffmpeg
+        if (isVideo) {
+            try {
+                audioFile = extractAudio(file);
+                tempAudio = true;
+            } catch (Exception e) {
+                return "视频音频提取失败。请用 ffmpeg 手动提取：ffmpeg -i video.mp4 -vn audio.wav";
+            }
+        }
+
+        // Limit to 10MB for base64
+        if (audioFile.length() > 10 * 1024 * 1024) {
+            if (tempAudio) audioFile.delete();
+            return "音频文件过大（超过10MB），暂不支持分析。";
+        }
+
+        byte[] bytes = Files.readAllBytes(audioFile.toPath());
+        String b64 = Base64.getEncoder().encodeToString(bytes);
+        String mime = "audio/" + (ext.equals("mp3") ? "mpeg" : ext.equals("wav") ? "wav" : "x-wav");
+
+        String body = String.format("""
+                {
+                  "model": "qwen-audio-turbo",
+                  "messages": [
+                    {"role": "user", "content": [
+                      {"type": "text", "text": "请转录音频内容，然后用中文总结关键要点和主要内容。输出格式：先输出转录文字，然后输出要点总结。"},
+                      {"type": "audio_url", "audio_url": {"url": "data:%s;base64,%s"}}
+                    ]}
+                  ],
+                  "max_tokens": 1500
+                }
+                """, mime, b64);
+
+        String result = callVisionApi(body);
+
+        if (tempAudio) audioFile.delete();
+        return result;
+    }
+
+    /**
+     * Extract audio from video using ffmpeg.
+     */
+    private File extractAudio(File videoFile) throws Exception {
+        File audioFile = File.createTempFile("extracted_", ".wav");
+        audioFile.deleteOnExit();
+
+        ProcessBuilder pb = new ProcessBuilder(
+                "ffmpeg", "-i", videoFile.getAbsolutePath(),
+                "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                "-y", audioFile.getAbsolutePath()
+        );
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            audioFile.delete();
+            throw new RuntimeException("ffmpeg exit code: " + exitCode);
+        }
+        return audioFile;
+    }
+
     private String callVisionApi(String body) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
