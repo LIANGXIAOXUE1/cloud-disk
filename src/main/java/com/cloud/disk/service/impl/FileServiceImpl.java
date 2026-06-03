@@ -30,7 +30,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
@@ -200,6 +202,48 @@ public class FileServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> imple
     @Override
     public Long getUsedSpace(Long userId) {
         return 0L;
+    }
+
+    @Override
+    public Map<String, Object> getStorageStats(Long userId) {
+        List<FileInfo> allFiles = this.list(new LambdaQueryWrapper<FileInfo>()
+                .eq(FileInfo::getUserId, userId)
+                .eq(FileInfo::getIsFolder, 0)
+                .eq(FileInfo::getDeleted, 0)
+                .ne(FileInfo::getFileStatus, 2));
+
+        long totalSpace = 10L * 1024 * 1024 * 1024;
+        long usedSpace = allFiles.stream().mapToLong(f -> f.getFileSize() != null ? f.getFileSize() : 0).sum();
+
+        Map<String, long[]> typeStats = new LinkedHashMap<>();
+        typeStats.put("image", new long[]{0, 0});
+        typeStats.put("doc", new long[]{0, 0});
+        typeStats.put("video", new long[]{0, 0});
+        typeStats.put("audio", new long[]{0, 0});
+        typeStats.put("other", new long[]{0, 0});
+
+        for (FileInfo f : allFiles) {
+            String ext = f.getFileType();
+            if (ext == null) ext = "";
+            ext = ext.toLowerCase();
+            String cat;
+            if (List.of("jpg","jpeg","png","gif","webp","svg","bmp","ico").contains(ext)) cat = "image";
+            else if (List.of("pdf","doc","docx","xls","xlsx","ppt","pptx","txt","md","csv","json","xml").contains(ext)) cat = "doc";
+            else if (List.of("mp4","webm","ogg","ogv","mov","avi","mkv","flv","wmv","m4v").contains(ext)) cat = "video";
+            else if (List.of("mp3","wav","ogg","oga","flac","aac","m4a","wma").contains(ext)) cat = "audio";
+            else cat = "other";
+            typeStats.get(cat)[0]++;
+            typeStats.get(cat)[1] += f.getFileSize() != null ? f.getFileSize() : 0;
+        }
+
+        List<Map<String, Object>> typeList = new ArrayList<>();
+        typeStats.forEach((k, v) -> typeList.add(Map.of("type", k, "count", v[0], "size", v[1])));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalSpace", totalSpace);
+        result.put("usedSpace", usedSpace);
+        result.put("typeStats", typeList);
+        return result;
     }
 
     @Override

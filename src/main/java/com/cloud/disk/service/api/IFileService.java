@@ -67,6 +67,11 @@ public interface IFileService extends IService<FileInfo> {
     Long getUsedSpace(Long userId);
 
     /**
+     * Get storage statistics (total/used space + file type breakdown)
+     */
+    java.util.Map<String, Object> getStorageStats(Long userId);
+
+    /**
      * 检查指定目录下是否已存在同名文件/文件夹
      * @param excludeFileId 排除的文件 ID（重命名时传入原 ID，新建时传 null）
      */

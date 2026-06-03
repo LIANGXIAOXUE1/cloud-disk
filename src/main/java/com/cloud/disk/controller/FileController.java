@@ -239,6 +239,14 @@ public class FileController {
         }
     }
 
+    @Operation(summary = "获取存储统计", description = "返回总空间/已用空间/文件类型分布")
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> stats() {
+        Long userId = UserContext.getCurrentUserId();
+        Map<String, Object> result = fileService.getStorageStats(userId);
+        return Result.success(result);
+    }
+
     // ==================== 文件上传（本地存储版） ====================
 
     @Operation(summary = "普通小文件上传", description = "接收 multipart/form-data，将文件保存到本地磁盘并写入数据库")
