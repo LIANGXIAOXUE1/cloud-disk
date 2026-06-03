@@ -94,7 +94,11 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!loading && fileList.length === 0" description="暂无文件，拖拽文件到上方区域上传" />
+      <el-empty v-if="!loading && fileList.length === 0" :description="emptyDescription">
+        <template v-if="!isSearching">
+          <p style="color:#999;font-size:13px">拖拽文件到上方区域上传，或点击「新建文件夹」</p>
+        </template>
+      </el-empty>
     </el-card>
 
     <!-- Create Folder Dialog -->
@@ -172,8 +176,9 @@ const loading = ref(false)
 const searchQuery = ref('')
 const searchType = ref('')
 const isSearching = computed(() => !!searchQuery.value?.trim())
+const emptyDescription = computed(() => isSearching.value ? '未找到相关文件' : '暂无文件')
 const breadcrumb = ref([])
-const breadcrumbIds = ref([])   // 对应文件夹 ID 列表（与 breadcrumb 同步）
+const breadcrumbIds = ref([])
 const currentParentId = ref(null)
 
 const showCreateDialog = ref(false)

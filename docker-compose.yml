@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cloud-disk-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Qq3147096185.
+      MYSQL_DATABASE: private_aggregator
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7-alpine
+    container_name: cloud-disk-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cloud-disk-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  backend:
+    build: .
+    container_name: cloud-disk-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+    volumes:
+      - cloud_disk_files:/data/files
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+volumes:
+  mysql_data:
+  redis_data:
+  cloud_disk_files:
