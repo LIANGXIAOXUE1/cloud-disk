@@ -9,6 +9,7 @@ import com.cloud.disk.common.result.PageResult;
 import com.cloud.disk.common.result.Result;
 import com.cloud.disk.repository.entity.FileInfo;
 import com.cloud.disk.service.api.IFileService;
+import com.cloud.disk.service.ai.AiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +34,9 @@ public class FileController {
 
     @Autowired
     private IFileService fileService;
+
+    @Autowired
+    private AiService aiService;
 
     @Operation(summary = "文件列表", description = "按父目录分页获取当前用户的文件列表")
     @GetMapping("/list")
@@ -245,6 +249,21 @@ public class FileController {
         Long userId = UserContext.getCurrentUserId();
         Map<String, Object> result = fileService.getStorageStats(userId);
         return Result.success(result);
+    }
+
+    @Operation(summary = "AI 文档摘要", description = "对文件内容进行 AI 摘要分析")
+    @PostMapping("/summary/{fileId}")
+    public Result<String> summary(@Parameter(description = "文件 ID") @PathVariable Long fileId) {
+        FileInfo f = fileService.getById(fileId);
+        if (f == null || f.getIsFolder() == 1) {
+            return Result.error(404, "文件不存在");
+        }
+        try {
+            String summary = aiService.summarize(f.getFilePath(), f.getFileType());
+            return Result.success(summary);
+        } catch (Exception e) {
+            return Result.error(500, "AI 摘要失败: " + e.getMessage());
+        }
     }
 
     // ==================== 文件上传（本地存储版） ====================

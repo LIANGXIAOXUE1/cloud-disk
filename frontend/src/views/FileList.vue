@@ -82,12 +82,13 @@
         <el-table-column label="修改时间" width="180">
           <template #default="{ row }">{{ row.updatedAt || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="280">
+        <el-table-column label="操作" width="340">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleRename(row)">重命名</el-button>
             <el-button link type="primary" size="small" @click="handleMove(row)">移动</el-button>
             <el-button link type="warning" size="small" @click="handleShare(row)">分享</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button v-if="isSummarizable(row)" link type="success" size="small" @click="openAiSummary(row)">AI 摘要</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -138,6 +139,9 @@
 
     <!-- Audio Player -->
     <AudioPlayer v-model="audioVisible" :file="audioFile" />
+
+    <!-- AI Summary -->
+    <AiSummary v-model="aiVisible" :file-id="aiFileId" />
   </div>
 </template>
 
@@ -157,6 +161,7 @@ import CodeViewer from '@/components/CodeViewer.vue'
 import OfficeViewer from '@/components/OfficeViewer.vue'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import AudioPlayer from '@/components/AudioPlayer.vue'
+import AiSummary from '@/components/AiSummary.vue'
 
 const userId = 1
 
@@ -205,6 +210,10 @@ const videoFile = ref(null)
 // 音频播放
 const audioVisible = ref(false)
 const audioFile = ref(null)
+
+// AI 摘要
+const aiVisible = ref(false)
+const aiFileId = ref(null)
 
 onMounted(() => loadFiles())
 
@@ -439,6 +448,16 @@ function isVideoFile(row) {
 function isAudioFile(row) {
   const audioExts = ['mp3', 'wav', 'ogg', 'oga', 'flac', 'aac', 'm4a', 'wma']
   return !row.isFolder && audioExts.includes((row.fileType || '').toLowerCase())
+}
+
+function isSummarizable(row) {
+  const ext = (row.fileType || '').toLowerCase()
+  return !row.isFolder && ['pdf', 'docx', 'txt', 'md', 'json', 'xml', 'csv'].includes(ext)
+}
+
+function openAiSummary(row) {
+  aiFileId.value = row.id
+  aiVisible.value = true
 }
 
 function getFileIcon(row) {
