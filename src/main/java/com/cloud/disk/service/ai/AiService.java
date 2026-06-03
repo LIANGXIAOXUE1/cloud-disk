@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.zip.ZipFile;
 
 /**
@@ -157,6 +158,101 @@ public class AiService {
         String text = respBody.substring(start, end)
                 .replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
         return text;
+    }
+
+    /**
+     * Describe an image using multimodal AI (qwen-vl-plus).
+     * @return AI-generated description/OCR text
+     */
+    public String describeImage(String filePath) throws Exception {
+        File file = new File(filePath);
+        if (!file.exists()) return "文件不存在";
+
+        byte[] bytes = Files.readAllBytes(file.toPath());
+        String b64 = Base64.getEncoder().encodeToString(bytes);
+        String ext = filePath.substring(filePath.lastIndexOf('.') + 1).toLowerCase();
+        String mime = switch (ext) {
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "bmp" -> "image/bmp";
+            default -> "image/jpeg";
+        };
+
+        String body = String.format("""
+                {
+                  "model": "qwen-vl-plus",
+                  "messages": [
+                    {"role": "user", "content": [
+                      {"type": "text", "text": "请描述这张图片的内容。如果图片中有文字，请提取所有文字。"},
+                      {"type": "image_url", "image_url": {"url": "data:%s;base64,%s"}}
+                    ]}
+                  ],
+                  "max_tokens": 800
+                }
+                """, mime, b64);
+
+        return callVisionApi(body);
+    }
+
+    /**
+     * Save an AI note linked to a file.
+     */
+    public void saveNote(String originalPath, String content) throws IOException {
+        String notePath = getNotePath(originalPath);
+        Files.writeString(Path.of(notePath), content, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Get an AI note for a file.
+     * @return note content or null
+     */
+    public String getNote(String originalPath) {
+        String notePath = getNotePath(originalPath);
+        File f = new File(notePath);
+        if (!f.exists()) return null;
+        try {
+            return Files.readString(f.toPath(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private String getNotePath(String filePath) {
+        int dot = filePath.lastIndexOf('.');
+        return dot > 0 ? filePath.substring(0, dot) + ".note.md" : filePath + ".note.md";
+    }
+
+    private String callVisionApi(String body) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"))
+                .header("Authorization", "Bearer " + API_KEY)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        log.info("Vision API status: {}", response.statusCode());
+
+        if (response.statusCode() != 200) {
+            log.error("Vision API error: {}", response.body());
+            throw new RuntimeException("AI image API error: " + response.statusCode());
+        }
+
+        String respBody = response.body();
+        int contentIdx = respBody.indexOf("\"content\":\"");
+        if (contentIdx < 0) {
+            // Content might be in array format
+            int textIdx = respBody.indexOf("\"text\":\"");
+            if (textIdx < 0) throw new RuntimeException("AI vision response format error");
+            int start = respBody.indexOf('"', textIdx + 7) + 1;
+            int end = respBody.indexOf('"', start);
+            return respBody.substring(start, end).replace("\\n", "\n").replace("\\\"", "\"");
+        }
+        int start = respBody.indexOf('"', contentIdx + 10) + 1;
+        int end = respBody.indexOf('"', start);
+        return respBody.substring(start, end).replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
     }
 
     private String escapeJson(String s) {

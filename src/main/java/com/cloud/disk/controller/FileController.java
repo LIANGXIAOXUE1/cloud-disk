@@ -266,6 +266,32 @@ public class FileController {
         }
     }
 
+    @Operation(summary = "AI 图片描述/OCR")
+    @PostMapping("/describe/{fileId}")
+    public Result<String> describe(@Parameter(description = "文件 ID") @PathVariable Long fileId) {
+        FileInfo f = fileService.getById(fileId);
+        if (f == null || f.getIsFolder() == 1) {
+            return Result.error(404, "文件不存在");
+        }
+        try {
+            String desc = aiService.describeImage(f.getFilePath());
+            // Auto-save as note
+            aiService.saveNote(f.getFilePath(), "# AI 图片描述\n\n" + desc);
+            return Result.success(desc);
+        } catch (Exception e) {
+            return Result.error(500, "AI 描述失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "获取 AI 笔记")
+    @GetMapping("/note/{fileId}")
+    public Result<String> getNote(@Parameter(description = "文件 ID") @PathVariable Long fileId) {
+        FileInfo f = fileService.getById(fileId);
+        if (f == null) return Result.error(404, "文件不存在");
+        String note = aiService.getNote(f.getFilePath());
+        return Result.success(note);
+    }
+
     // ==================== 文件上传（本地存储版） ====================
 
     @Operation(summary = "普通小文件上传", description = "接收 multipart/form-data，将文件保存到本地磁盘并写入数据库")

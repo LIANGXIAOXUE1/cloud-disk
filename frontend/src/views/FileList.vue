@@ -89,6 +89,7 @@
             <el-button link type="warning" size="small" @click="handleShare(row)">分享</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
             <el-button v-if="isSummarizable(row)" link type="success" size="small" @click="openAiSummary(row)">AI 摘要</el-button>
+            <el-button v-if="isImageFile(row)" link type="success" size="small" @click="openAiDescribe(row)">AI 描述</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -141,7 +142,7 @@
     <AudioPlayer v-model="audioVisible" :file="audioFile" />
 
     <!-- AI Summary -->
-    <AiSummary v-model="aiVisible" :file-id="aiFileId" />
+    <AiSummary v-model="aiVisible" :file-id="aiFileId" :mode="aiMode" />
   </div>
 </template>
 
@@ -214,6 +215,7 @@ const audioFile = ref(null)
 // AI 摘要
 const aiVisible = ref(false)
 const aiFileId = ref(null)
+const aiMode = ref('summary') // summary | describe
 
 onMounted(() => loadFiles())
 
@@ -456,6 +458,13 @@ function isSummarizable(row) {
 }
 
 function openAiSummary(row) {
+  aiMode.value = 'summary'
+  aiFileId.value = row.id
+  aiVisible.value = true
+}
+
+function openAiDescribe(row) {
+  aiMode.value = 'describe'
   aiFileId.value = row.id
   aiVisible.value = true
 }
