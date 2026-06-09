@@ -16,6 +16,7 @@ public class FileInfo {
     private Long parentId;
     private String fileName;
     private String filePath;
+    private String thumbPath;
     private Long fileSize;
     private String fileType;
     private String storageType;

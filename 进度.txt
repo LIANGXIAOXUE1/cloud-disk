@@ -1,0 +1,138 @@
+基于之前的分析，做了这些调整：
+
+全局异常处理提前到第二阶段开头
+接入 Knife4j API 文档
+增加单元测试
+参数校验并入异常处理任务
+网盘转存改用阿里云盘为主
+缩略图生成并入文件预览
+存储空间统计并入个人中心
+阶段	编号	任务	核心产出
+一	1	后端项目初始化 + UTF-8	✅
+2	数据库表 + 实体 + Mapper	✅
+3	前端初始化 + 路由 + 布局	✅
+4	Git 初始化 + 分支管理	✅
+二	5	用户模块：登录/注册/Sa-Token 鉴权 + 前端登录页	BCrypt 加密、路由守卫、Redisson 互斥登录
+6	全局异常处理 + 统一返回 + 参数校验 + Knife4j	所有后续接口自动受益，联调效率翻倍
+7	文件 CRUD + Redisson 锁 + 前端文件列表	新建/重命名/移动/删除，AOP 权限校验
+8	分片上传 + 断点续传 + 前端上传组件	Redis 分片状态、MinIO 合并、进度条
+9	存储策略模式 + 存储管理页	StorageStrategy 接口、MinIO/Aliyun/Cloud123/OneDrive
+10	文件预览 + 缩略图	图片/PDF/视频在线预览，异步缩略图生成
+11	RabbitMQ 异步配置 + 通知验证	交换机/队列/死信队列，注册成功通知闭环验证
+12	网盘转存：阿里云盘为主 + 百度预留接口	异步转存全流程，任务状态推送
+三	13	文件分享：提取码 + 有效期	链接生成/取消/下载，防刷机制
+14	全局搜索 + 回收站	跨存储搜索，还原/彻底删除/定时清理
+15	二级缓存优化：Redis + Caffeine	文件列表缓存、搜索结果缓存
+16	个人中心 + 存储空间统计	改密/头像/昵称，聚合空间计算
+四	17	单元测试 + 集成测试	Service 层覆盖率 ≥ 60%，核心流程集成测试
+18	前端 UI 美化 + 移动端适配	莫兰迪主题，响应式布局
+19	Docker Compose 一键部署	MySQL/Redis/RabbitMQ/MinIO/后端/前端全容器化
+20	文档 + 开源上线	README、部署教程、技术文档、架构图
+和旧版的主要变化
+变化	原因
+全局异常提前到任务 6	越早统一错误格式，后续 10+ 个接口开发越顺
+Knife4j 随任务 6 接入	不用每次手动拼 curl，浏览器直接调试
+参数校验并入任务 6	和异常处理天然绑定，校验失败统一返回
+任务 20 从 18 扩到 20	多了测试和 API 文档，对开源+面试都是刚需
+百度转存 → 阿里云盘转存	个人可申请，开源无风险
+缩略图并入文件预览	不单独拆任务，避免空壳 consumer
+
+
+
+后端测试（共 10 条）
+启动后端：运行 CloudDiskApplication
+打开 Knife4j 文档：http://localhost:8080/doc.html
+按以下顺序在文档中测试 AuthController 的 5 个接口：
+#	接口	测试点	预期结果
+1	POST /api/auth/register	username:test01, password:123456	code=200，注册成功
+2	POST /api/auth/register	再次注册 test01	code≠200，提示用户名已存在
+3	POST /api/auth/register	password:123（<6位）	参数校验失败
+4	POST /api/auth/register	username:"" 空参数	参数校验失败
+5	POST /api/auth/login	test01 + 123456	code=200，返回 token
+6	POST /api/auth/login	test01 + 错误密码	code≠200，提示密码错误
+7	GET /api/auth/userInfo	Header cloud_disk_token: {第5步的token}	code=200，返回用户信息
+8	GET /api/auth/userInfo	不带 token	code=401，未登录
+9	POST /api/auth/logout	带 token	code=200，退出成功
+10	GET /api/auth/userInfo	用已退出的 token	code=401，token 失效
+前端测试（共 7 条）
+启动前端：cd frontend && npm run dev
+
+#	操作	预期结果
+1	未登录访问 /#/home	自动跳转到登录页
+2	登录页输入错误密码	弹出错误提示，不跳转
+3	正确登录（test01/123456）	跳转到首页，localStorage 存真实 token
+4	登录后刷新页面	保持登录状态，不跳回登录页
+5	注册页两次密码不一致	表单校验提示"两次输入的密码不一致"
+6	注册成功（新用户）	提示"注册成功，请登录"并跳转登录页
+7	登录后 F12 Application → Local Storage	token 值为长 UUID，不是 logged-in
+
+
+任务6测试用例
+---
+
+## 任务6：文件基础 CRUD + 列表展示
+
+### 一、任务内容说明
+
+当前文件模块有骨架代码，但存在以下问题需要修复：
+
+| 问题 | 现状 | 需改成 |
+|------|------|--------|
+| userId 来源 | Controller 从请求参数拿 `userId` | 从 Sa-Token 当前登录用户（`UserContext`）获取 |
+| 返回格式 | 直接返回 `List` / `String` | 统一用 `Result` 包装 |
+| 权限校验 | 无，任何人传 fileId 就能操作 | AOP 切面：操作前校验文件是否属于当前用户 |
+| 删除逻辑 | 只改 `fileStatus=2` | 同时写入 `recycle_bin` 表，记录删除时间 |
+| 同名检查 | 无 | 创建/重命名/移动时检查目标位置是否已存在同名文件 |
+| 分页 | 无 | 文件列表接口加分页参数 |
+| 批量删除 | 无 Controller | 新增 `batchDelete` |
+
+### 二、为什么用 AOP 做权限校验？
+
+文件模块有 7 个操作都涉及单文件归属校验（重命名、移动、复制、删除、下载、预览等）。如果每个方法里都写：
+
+```java
+FileInfo f = getById(fileId);
+if (!f.getUserId().equals(currentUserId)) throw new BusinessException("无权操作");
+```
+
+代码重复 7 遍。用 AOP 切面可以在方法执行前统一拦截，只写一次。
+
+核心思路：
+- 自定义注解 `@CheckFileOwner`
+- 切面类解析方法参数中的 `fileId`，查数据库比对 `userId`
+- 不匹配直接抛异常
+
+这和 Sa-Token 的路由拦截是两层防护：路由拦截管"登没登录"，AOP 拦"是不是你的文件"。
+
+### 三、测试用例
+
+#### 后端测试用例（Knife4j，共 12 条）
+
+| # | 接口 | 测试场景 | 预期 |
+|---|------|----------|------|
+| 1 | GET `/api/file/list?parentId=0&page=1&size=20` | test01 用户查看根目录 | code=200，返回空列表（没传过文件） |
+| 2 | POST `/api/file/createFolder` | `parentId=0, folderName="我的文档"` | code=200，创建成功，返回文件夹信息 |
+| 3 | POST `/api/file/createFolder` | 再次创建同名 `folderName="我的文档"` | code≠200，提示"同名文件已存在" |
+| 4 | POST `/api/file/rename` | `fileId={文件夹id}, newName="我的资料"` | code=200，重命名成功 |
+| 5 | POST `/api/file/rename` | `fileId={不存在的id}` | code≠200，提示"文件不存在" |
+| 6 | POST `/api/file/rename` | `fileId={另一个用户的文件id}` | code≠200，提示"无权操作"（AOP拦截） |
+| 7 | POST `/api/file/move` | `fileId={文件夹id}, targetParentId={其他folderId}` | code=200，移动成功，原位置不再显示 |
+| 8 | POST `/api/file/copy` | `fileId={某个文件id}, targetParentId=0` | code=200，复制成功，根目录多一份 |
+| 9 | POST `/api/file/delete` | `fileId={某个文件id}` | code=200，文件消失，recycle_bin表多一条记录 |
+| 10 | POST `/api/file/batchDelete` | `fileIds=[id1, id2]` | code=200，批量删除，回收站各有一条 |
+| 11 | GET `/api/file/list` | 切换到 test02 的 token，访问 root | 只看到 test02 的文件，看不到 test01 的 |
+| 12 | POST `/api/file/delete` | 用 test02 的 token 删 test01 的文件 | code≠200，AOP 拦截"无权操作" |
+
+#### 前端测试用例（共 5 条）
+
+| # | 操作 | 预期 |
+|---|------|------|
+| 1 | 登录后进入"文件管理"页 | 显示根目录文件列表（含分页） |
+| 2 | 点击"新建文件夹"，输入名称 | 列表刷新，新增一栏 |
+| 3 | 右键某文件 → 重命名，输入新名称 | 文件名更新 |
+| 4 | 右键某文件 → 删除 | 文件从列表消失 |
+| 5 | F12 Network 面板确认所有请求 | 都带 `cloud_disk_token`，无 401 |
+
+---
+
+

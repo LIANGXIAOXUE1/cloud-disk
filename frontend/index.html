@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+    <title>Cloud Disk — Personal Cloud Aggregator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Prevent flash of unstyled content; fallback after 2s if fonts fail to load */
+      body { visibility: hidden; }
+      body.fonts-loaded { visibility: visible; }
+    </style>
+    <script>
+      // Resolve fonts.ready with a timeout fallback (Google Fonts may be blocked)
+      Promise.race([
+        document.fonts.ready,
+        new Promise(resolve => setTimeout(resolve, 2000))
+      ]).then(function() {
+        document.body.classList.add('fonts-loaded');
+      });
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
